@@ -59,9 +59,9 @@ theorem jacobian_isogeny_cannot_glue_regulator :
     | ⟨0, _⟩, ⟨1, _⟩ | ⟨0, _⟩, ⟨2, _⟩ | ⟨1, _⟩, ⟨0, _⟩
     | ⟨1, _⟩, ⟨2, _⟩ | ⟨2, _⟩, ⟨0, _⟩ | ⟨2, _⟩, ⟨1, _⟩ => decide
 
+end MetaCodex.Examples
+
 -- Audit the Jacobian obstruction theorem with MetaCodex's linters:
 #audit_theorem MetaCodex.Examples.jacobian_isogeny_cannot_glue_regulator
-#audit_fields jacobian_isogeny_cannot_glue_regulator MockJacobian
-#audit_fibers jacobian_isogeny_cannot_glue_regulator
-
-end MetaCodex.Examples
+#audit_fields MetaCodex.Examples.jacobian_isogeny_cannot_glue_regulator MetaCodex.Examples.MockJacobian
+#audit_fibers MetaCodex.Examples.jacobian_isogeny_cannot_glue_regulator
