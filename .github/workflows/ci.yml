@@ -16,8 +16,8 @@ jobs:
         with:
           build: false
 
-      - name: Resolve X-files dependency and build MetaCodex
+      - name: Resolve dependencies and build MetaCodex
         run: |
           lake update
           lake exe cache get || true
-          lake build MetaCodex Examples.HigherDimDemo
+          lake build MetaCodex Examples.HigherDimDemo Examples.JacobianObstructionDemo
