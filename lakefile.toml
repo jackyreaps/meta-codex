@@ -8,4 +8,17 @@ git = "https://github.com/jackyreaps/X-files"
 rev = "main"
 
 [[lean_lib]]
-name = "MetaCodex"
+name = "meta-codex"
+
+[[lean_lib]]
+name = "Core"
+
+[[lean_lib]]
+name = "Abstractions"
+
+[[lean_lib]]
+name = "Paradox"
+
+[[lean_lib]]
+name = "Examples"
+
