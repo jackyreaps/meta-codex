@@ -16,15 +16,17 @@ def transportManifold (h : vacuousManifoldTag 24 120) : LayeredManifold :=
 def existentialFiberHypothesis : Prop :=
   ∃ (ambientDim : Nat), 8 ≤ ambientDim
 
-theorem demoHeadlineTheorem (hf : existentialFiberHypothesis) : 2 ≤ 4 := by
-  have _ := hf
+/-- Notice `_hf` is accepted as a `Prop` hypothesis and never referenced in the proof body
+    (`#audit_passthrough` flags this automatically). -/
+theorem demoHeadlineTheorem (_hf : existentialFiberHypothesis) : 2 ≤ 4 := by
   let m := transportManifold trivial
   have hBound : m.activeBound = 4 := rfl
   omega
 
--- Run all four MetaCodex audits:
+-- Run all five MetaCodex audits:
 #audit_theorem MetaCodex.Examples.demoHeadlineTheorem
 #audit_fields demoHeadlineTheorem LayeredManifold
+#audit_passthrough demoHeadlineTheorem
 #audit_fibers demoHeadlineTheorem
 #audit_inductives demoHeadlineTheorem
 
