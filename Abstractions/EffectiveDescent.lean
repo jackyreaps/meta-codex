@@ -4,24 +4,27 @@ import Paradox.TopologicalArtifact
 # EffectiveDescent: Top-Down / Bottom-Up Mirroring & Jacobian Descent Obstructions
 
 Formalizes (`sorry`-free, pure Lean 4 core) both sides of global-to-local hierarchies:
-1. **Effective Descent (`MirrorAdjunction`):** When top-down projection `Δ` and bottom-up
-   gluing `Γ` form an adjoint equivalence (`unit : ∀ g, Γ (Δ g) = g`), `Δ` is injective and
-   no `TopologicalArtifact` fiber ambiguity can exist (`descent_eliminates_fiber_ambiguity`).
+
+1. **Effective Descent (`MirrorAdjunction`):** When top-down projection `Δ` and
+   bottom-up gluing `Γ` form an object-level equivalence, `Δ` is injective and no
+   `TopologicalArtifact` fiber ambiguity can exist.
+
 2. **Graded Local Hierarchy Obstruction (`graded_hierarchy_descent_obstruction`):**
-   Models a two-layer arithmetic/geometric projection (`inv : Global → InvLayer`,
-   e.g., isogeny-invariant traces `{a_p}`, paired with `finLocal : Global → Fin k`,
-   e.g., finite local reduction data `{c_p}`). Proves via pure-core pigeonhole on `Fin k`
-   that if an isogeny class contains `k + 1` curves with pairwise distinct analytic
-   invariants (e.g., regulators `R_E`), no function `F : InvLayer → Fin k → Analytic`
-   can uniformly reconstruct the analytic invariant.
+   Models a two-layer projection (invariant layer + finite local layer). Proves via
+   pure-core pigeonhole on `Fin k` that if an isogeny class contains `k + 1` curves
+   with pairwise distinct analytic invariants, no function
+   `F : InvLayer → Fin k → Analytic` can uniformly reconstruct the analytic invariant.
+
+3. **Partial Descent Fiber Refinement (`partial_descent_fiber_refinement`):**
+   Adjoining any finite auxiliary invariant `auxLocal : Global → Fin m` still cannot
+   recover `analyticInvariant` on any invariant family of size `k * m + 1`.
 -/
 
 namespace MetaCodex.Abstractions
 
 open MetaCodex.Paradox
 
-/-- Exact mirroring (adjoint equivalence at the object level) between a global space `Global`
-    and a local patch space `Local` via top-down projection `Δ` and bottom-up gluing `Γ`. -/
+/-- Strict object-level equivalence between a global space and a local patch space. -/
 structure MirrorAdjunction (Global : Type u) (Local : Type v) where
   project : Global → Local
   glue : Local → Global
@@ -30,20 +33,17 @@ structure MirrorAdjunction (Global : Type u) (Local : Type v) where
   triangle_left : ∀ g : Global, congrArg project (unit g) = counit (project g)
   triangle_right : ∀ l : Local, congrArg glue (counit l) = unit (glue l)
 
-/-- **Vanishing Obstruction Theorem (`descent_eliminates_fiber_ambiguity`):**
-    Under a `MirrorAdjunction`, top-down projection `Δ` is injective. -/
+/-- Under a MirrorAdjunction, top-down projection is injective. -/
 theorem descent_eliminates_fiber_ambiguity {Global : Type u} {Local : Type v}
     (adj : MirrorAdjunction Global Local) {g₁ g₂ : Global}
     (hShadow : adj.project g₁ = adj.project g₂) :
     g₁ = g₂ := by
   calc
     g₁ = adj.glue (adj.project g₁) := (adj.unit g₁).symm
-    _ = adj.glue (adj.project g₂) := congrArg adj.glue hShadow
-    _ = g₂ := adj.unit g₂
+    _  = adj.glue (adj.project g₂) := congrArg adj.glue hShadow
+    _  = g₂ := adj.unit g₂
 
-/-- **No Topological Artifacts Under Effective Descent:**
-    When a `ProjectedSystem` is governed by a `MirrorAdjunction`, no two distinct
-    `TopologicalArtifact`s can share the same target shadow. -/
+/-- No two distinct TopologicalArtifacts can share the same target shadow under descent. -/
 theorem no_hidden_artifacts_under_descent {Global : Type u} {Local : Type v}
     (adj : MirrorAdjunction Global Local)
     (isValid : Global → Prop) (target : Local) :
@@ -54,8 +54,7 @@ theorem no_hidden_artifacts_under_descent {Global : Type u} {Local : Type v}
     a₁.projectsTo.trans a₂.projectsTo.symm
   exact hNeq (descent_eliminates_fiber_ambiguity adj hProj)
 
-/-- **Round-Trip Collapse Theorem:**
-    Every iterated global → local → global round-trip collapses to a single step. -/
+/-- Every iterated global → local → global round-trip collapses to a single step. -/
 theorem mirror_roundtrip_collapses {Global : Type u} {Local : Type v}
     (adj : MirrorAdjunction Global Local) (g : Global) :
     adj.glue (adj.project (adj.glue (adj.project g))) = g := by
@@ -63,7 +62,7 @@ theorem mirror_roundtrip_collapses {Global : Type u} {Local : Type v}
 
 /-! ### Graded Local-to-Global Hierarchy & Jacobian Obstruction -/
 
-/-- Pure Lean 4 core pigeonhole principle: no map `Fin (k + 1) → Fin k` is injective. -/
+/-- Pure Lean 4 core pigeonhole: no map `Fin (k + 1) → Fin k` is injective. -/
 private theorem exists_collision_fin :
     ∀ {k : Nat} (f : Fin (k + 1) → Fin k),
       ∃ i j : Fin (k + 1), i ≠ j ∧ f i = f j
@@ -109,22 +108,25 @@ private theorem exists_collision_fin :
         have hNe2 : (f j.castSucc).val ≠ (f last).val := fun h => hHit ⟨j, Fin.ext h⟩
         exact Fin.ext (by omega)
 
-/-- A two-tier global-to-local hierarchy separating an invariant layer (`InvLayer`,
-    such as isogeny-invariant `{a_p}` traces) from a finite local layer (`Fin k`,
-    such as discrete Tamagawa/reduction data `{c_p}`) and a continuous analytic target
-    (`Analytic`, such as the real regulator `R_E`). -/
+/-- Two-tier hierarchy: invariant layer, finite local layer, continuous analytic target. -/
 structure GradedLocalHierarchy (Global : Type u) (InvLayer : Type v)
     (k : Nat) (Analytic : Type w) where
   projectInvariant : Global → InvLayer
   projectFiniteLocal : Global → Fin k
   analyticInvariant : Global → Analytic
 
-/-- **Finite-to-Continuum Descent Obstruction (Jacobian Isogeny Theorem):**
-    If `k + 1` global objects share the same `projectInvariant` layer (`{a_p}`)
-    while having pairwise distinct `analyticInvariant` values (`R_E`), then by
-    pigeonhole on `Fin k`, two distinct objects share both `projectInvariant` and
-    `projectFiniteLocal`, so NO reconstruction map `F : InvLayer → Fin k → Analytic`
-    can uniformly recover `analyticInvariant`. -/
+/-- Distinct analytic invariants force distinct global objects in the family. -/
+theorem family_injective_of_distinct_analytic
+    {Global : Type u} {InvLayer : Type v} {k : Nat} {Analytic : Type w}
+    (H : GradedLocalHierarchy Global InvLayer k Analytic)
+    (family : Fin (k + 1) → Global)
+    (hDistinctAnalytic : ∀ i j : Fin (k + 1), i ≠ j →
+      H.analyticInvariant (family i) ≠ H.analyticInvariant (family j)) :
+    ∀ i j : Fin (k + 1), i ≠ j → family i ≠ family j := by
+  intro i j hNeq hEqObj
+  exact hDistinctAnalytic i j hNeq (congrArg H.analyticInvariant hEqObj)
+
+/-- Finite-to-continuum descent obstruction (Jacobian isogeny shape). -/
 theorem graded_hierarchy_descent_obstruction
     {Global : Type u} {InvLayer : Type v} {k : Nat} {Analytic : Type w}
     (H : GradedLocalHierarchy Global InvLayer k Analytic)
@@ -145,8 +147,77 @@ theorem graded_hierarchy_descent_obstruction
       H.analyticInvariant (family i)
         = F (H.projectInvariant (family i)) (H.projectFiniteLocal (family i)) := (hF i).symm
       _ = F (H.projectInvariant (family j)) (H.projectFiniteLocal (family j)) := by
-        rw [hSameInv i j, hSameFin]
+          rw [hSameInv i j, hSameFin]
       _ = H.analyticInvariant (family j) := hF j
   exact hDistinctAnalytic i j hNeq hEqAnalytic
+
+/-- Partial descent: adjoining Fin m still fails on a family of size k * m + 1. -/
+theorem partial_descent_fiber_refinement
+    {Global : Type u} {InvLayer : Type v} {k m : Nat} {Analytic : Type w}
+    (H : GradedLocalHierarchy Global InvLayer k Analytic)
+    (auxLocal : Global → Fin m)
+    (family : Fin (k * m + 1) → Global)
+    (hSameInv : ∀ i j : Fin (k * m + 1),
+      H.projectInvariant (family i) = H.projectInvariant (family j))
+    (hDistinctAnalytic : ∀ i j : Fin (k * m + 1), i ≠ j →
+      H.analyticInvariant (family i) ≠ H.analyticInvariant (family j)) :
+    ¬ ∃ (F : InvLayer → Fin k → Fin m → Analytic),
+      ∀ i : Fin (k * m + 1),
+        F (H.projectInvariant (family i))
+          (H.projectFiniteLocal (family i))
+          (auxLocal (family i)) =
+          H.analyticInvariant (family i) := by
+  rintro ⟨F, hF⟩
+  let combined : GradedLocalHierarchy Global InvLayer (k * m) Analytic :=
+    { projectInvariant := H.projectInvariant
+      projectFiniteLocal := fun g =>
+        ⟨(H.projectFiniteLocal g).val * m + (auxLocal g).val, by
+          have hk : (H.projectFiniteLocal g).val < k := (H.projectFiniteLocal g).isLt
+          have hm : (auxLocal g).val < m := (auxLocal g).isLt
+          have h1 : ((H.projectFiniteLocal g).val + 1) * m ≤ k * m :=
+            Nat.mul_le_mul_right m hk
+          omega⟩
+      analyticInvariant := H.analyticInvariant }
+  apply graded_hierarchy_descent_obstruction combined family hSameInv hDistinctAnalytic
+  refine ⟨fun inv idx =>
+    F inv ⟨idx.val / m, by
+        have hIdx : idx.val < k * m := idx.isLt
+        have hmPos : 0 < m := by
+          cases m with
+          | zero => simp at hIdx
+          | succ m' => exact Nat.zero_lt_succ m'
+        exact (Nat.div_lt_iff_lt_mul hmPos).mpr hIdx⟩
+      ⟨idx.val % m, by
+        have hIdx : idx.val < k * m := idx.isLt
+        have hmPos : 0 < m := by
+          cases m with
+          | zero => simp at hIdx
+          | succ m' => exact Nat.zero_lt_succ m'
+        exact Nat.mod_lt idx.val hmPos⟩, ?_⟩
+  intro i
+  have hm : (auxLocal (family i)).val < m := (auxLocal (family i)).isLt
+  have hmPos : 0 < m := Nat.lt_of_le_of_lt (Nat.zero_le _) hm
+  have hDiv :
+      ((H.projectFiniteLocal (family i)).val * m + (auxLocal (family i)).val) / m =
+        (H.projectFiniteLocal (family i)).val := by
+    rw [Nat.mul_comm, Nat.mul_add_div hmPos, Nat.div_eq_of_lt hm, Nat.add_zero]
+  have hMod :
+      ((H.projectFiniteLocal (family i)).val * m + (auxLocal (family i)).val) % m =
+        (auxLocal (family i)).val := by
+    rw [Nat.mul_comm, Nat.mul_add_mod, Nat.mod_eq_of_lt hm]
+  have hIdxFst :
+      (⟨(combined.projectFiniteLocal (family i)).val / m, by
+        have hIdx := (combined.projectFiniteLocal (family i)).isLt
+        exact (Nat.div_lt_iff_lt_mul hmPos).mpr hIdx⟩ : Fin k) =
+        H.projectFiniteLocal (family i) :=
+    Fin.ext hDiv
+  have hIdxSnd :
+      (⟨(combined.projectFiniteLocal (family i)).val % m, by
+        exact Nat.mod_lt _ hmPos⟩ : Fin m) =
+        auxLocal (family i) :=
+    Fin.ext hMod
+  dsimp [combined]
+  rw [hIdxFst, hIdxSnd]
+  exact hF i
 
 end MetaCodex.Abstractions
