@@ -18,12 +18,12 @@ def existentialFiberHypothesis : Prop :=
 
 theorem demoHeadlineTheorem (hf : existentialFiberHypothesis) : 2 ≤ 4 := by
   have _ := hf
-  have m := transportManifold trivial
+  let m := transportManifold trivial
   have hBound : m.activeBound = 4 := rfl
   omega
 
 -- Run all four MetaCodex audits:
-#audit_theorem demoHeadlineTheorem
+#audit_theorem MetaCodex.Examples.demoHeadlineTheorem
 #audit_fields demoHeadlineTheorem LayeredManifold
 #audit_fibers demoHeadlineTheorem
 #audit_inductives demoHeadlineTheorem
