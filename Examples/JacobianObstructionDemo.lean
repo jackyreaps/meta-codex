@@ -6,8 +6,8 @@ import MetaCodex
 Instantiates `MetaCodex.Abstractions.GradedLocalHierarchy` on a concrete 3-curve
 isogeny family (`k = 2` finite local reduction states, `3 = k + 1` curves sharing the
 same isogeny-invariant Frobenius trace fingerprint while carrying distinct analytic
-regulators). Proves (`sorry`-free) that no bottom-up gluing function `F` can uniformly
-reconstruct the analytic regulator from invariant + finite-local data alone.
+regulators). Proves (`sorry`-free, pure Lean 4 core) that no bottom-up gluing function
+`F` can uniformly reconstruct the analytic regulator from invariant + finite-local data alone.
 -/
 
 namespace MetaCodex.Examples
@@ -47,9 +47,17 @@ theorem jacobian_isogeny_cannot_glue_regulator :
           jacobianHierarchy.analyticInvariant (isogenyClassFamily i) := by
   apply graded_hierarchy_descent_obstruction jacobianHierarchy isogenyClassFamily
   · intro i j
-    fin_cases i <;> fin_cases j <;> rfl
+    match i, j with
+
+    | ⟨0, _⟩, ⟨0, _⟩ | ⟨0, _⟩, ⟨1, _⟩ | ⟨0, _⟩, ⟨2, _⟩
+    | ⟨1, _⟩, ⟨0, _⟩ | ⟨1, _⟩, ⟨1, _⟩ | ⟨1, _⟩, ⟨2, _⟩
+    | ⟨2, _⟩, ⟨0, _⟩ | ⟨2, _⟩, ⟨1, _⟩ | ⟨2, _⟩, ⟨2, _⟩ => rfl
   · intro i j hNeq
-    fin_cases i <;> fin_cases j <;> simp_all [jacobianHierarchy, isogenyClassFamily]
+    match i, j with
+
+    | ⟨0, _⟩, ⟨0, _⟩ | ⟨1, _⟩, ⟨1, _⟩ | ⟨2, _⟩, ⟨2, _⟩ => exact False.elim (hNeq rfl)
+    | ⟨0, _⟩, ⟨1, _⟩ | ⟨0, _⟩, ⟨2, _⟩ | ⟨1, _⟩, ⟨0, _⟩
+    | ⟨1, _⟩, ⟨2, _⟩ | ⟨2, _⟩, ⟨0, _⟩ | ⟨2, _⟩, ⟨1, _⟩ => decide
 
 -- Audit the Jacobian obstruction theorem with MetaCodex's linters:
 #audit_theorem MetaCodex.Examples.jacobian_isogeny_cannot_glue_regulator
