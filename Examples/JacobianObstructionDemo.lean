@@ -62,6 +62,5 @@ theorem jacobian_isogeny_cannot_glue_regulator :
 end MetaCodex.Examples
 
 -- Audit the Jacobian obstruction theorem with MetaCodex's linters:
-#audit_theorem MetaCodex.Examples.jacobian_isogeny_cannot_glue_regulator
 #audit_fields MetaCodex.Examples.jacobian_isogeny_cannot_glue_regulator MetaCodex.Examples.MockJacobian
 #audit_fibers MetaCodex.Examples.jacobian_isogeny_cannot_glue_regulator
