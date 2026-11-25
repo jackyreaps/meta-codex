@@ -1,14 +1,14 @@
 name = "meta-codex"
 version = "0.1.0"
-defaultTargets = ["MetaCodex"]
+defaultTargets = ["MetaCodex", "Core", "Abstractions", "Paradox", "Examples"]
 
 [[require]]
 name = "X-files"
-git = "https://github.com/jackyreaps/X-files"
+git = "https://github.com"
 rev = "main"
 
 [[lean_lib]]
-name = "meta-codex"
+name = "MetaCodex"
 
 [[lean_lib]]
 name = "Core"
@@ -21,4 +21,3 @@ name = "Paradox"
 
 [[lean_lib]]
 name = "Examples"
-
