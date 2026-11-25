@@ -4,5 +4,6 @@ import Core.PassThroughAudit
 import Abstractions.ExistentialFiber
 import Abstractions.InductiveIntegrity
 import Abstractions.RecursiveTower
+import Abstractions.EffectiveDescent
 import Paradox.TopologicalArtifact
 import Paradox.Underdetermination
