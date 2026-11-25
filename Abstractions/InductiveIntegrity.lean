@@ -1,4 +1,4 @@
-import MetaCodex.Core.FieldProjection
+import Core.FieldProjection
 
 /-!
 # InductiveIntegrity: Recursive & Mutual Inductive Metadata Audit
