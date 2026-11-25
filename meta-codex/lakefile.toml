@@ -1,0 +1,11 @@
+name = "meta-codex"
+version = "0.1.0"
+defaultTargets = ["MetaCodex"]
+
+[[require]]
+name = "X-files"
+git = "https://github.com"
+rev = "main"
+
+[[lean_lib]]
+name = "MetaCodex"
