@@ -1,4 +1,4 @@
-import ScaffoldingAudit
+import Core.ConeAudit
 import Core.FieldProjection
 import Core.PassThroughAudit
 import Abstractions.ExistentialFiber
