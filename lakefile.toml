@@ -4,7 +4,7 @@ defaultTargets = ["MetaCodex", "Core", "Abstractions", "Paradox", "Examples"]
 
 [[require]]
 name = "X-files"
-git = "https://github.com"
+git = "https://github.com/jackyreaps/X-files"
 rev = "main"
 
 [[lean_lib]]
