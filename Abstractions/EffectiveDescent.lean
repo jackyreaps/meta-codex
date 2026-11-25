@@ -92,19 +92,19 @@ private theorem exists_collision_fin :
       refine ⟨i.castSucc, j.castSucc, fun h => hNeq (Fin.castSucc_inj.mp h), ?_⟩
       dsimp [g] at hEqG
       split at hEqG <;> split at hEqG
-      · exact Fin.ext (congrArg Fin.val hEqG)
+      · exact Fin.ext (congrArg (Fin.val : Fin k → Nat) hEqG)
       · rename_i h1 h2
-        have hVal := congrArg Fin.val hEqG
+        have hVal := congrArg (Fin.val : Fin k → Nat) hEqG
         simp at hVal
         have hNe2 : (f j.castSucc).val ≠ (f last).val := fun h => hHit ⟨j, Fin.ext h⟩
         omega
       · rename_i h1 h2
-        have hVal := congrArg Fin.val hEqG
+        have hVal := congrArg (Fin.val : Fin k → Nat) hEqG
         simp at hVal
         have hNe1 : (f i.castSucc).val ≠ (f last).val := fun h => hHit ⟨i, Fin.ext h⟩
         omega
       · rename_i h1 h2
-        have hVal := congrArg Fin.val hEqG
+        have hVal := congrArg (Fin.val : Fin k → Nat) hEqG
         simp at hVal
         have hNe1 : (f i.castSucc).val ≠ (f last).val := fun h => hHit ⟨i, Fin.ext h⟩
         have hNe2 : (f j.castSucc).val ≠ (f last).val := fun h => hHit ⟨j, Fin.ext h⟩
