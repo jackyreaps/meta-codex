@@ -1,5 +1,5 @@
 import ScaffoldingAudit
-import MetaCodex.Core.FieldProjection
-import MetaCodex.Abstractions.ExistentialFiber
-import MetaCodex.Abstractions.InductiveIntegrity
-import MetaCodex.Paradox.TopologicalArtifact
+import Core.FieldProjection
+import Abstractions.ExistentialFiber
+import Abstractions.InductiveIntegrity
+import Paradox.TopologicalArtifact
