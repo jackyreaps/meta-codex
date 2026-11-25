@@ -57,7 +57,8 @@ theorem jacobian_isogeny_cannot_glue_regulator :
 
     | ⟨0, _⟩, ⟨0, _⟩ | ⟨1, _⟩, ⟨1, _⟩ | ⟨2, _⟩, ⟨2, _⟩ => exact False.elim (hNeq rfl)
     | ⟨0, _⟩, ⟨1, _⟩ | ⟨0, _⟩, ⟨2, _⟩ | ⟨1, _⟩, ⟨0, _⟩
-    | ⟨1, _⟩, ⟨2, _⟩ | ⟨2, _⟩, ⟨0, _⟩ | ⟨2, _⟩, ⟨1, _⟩ => decide
+    | ⟨1, _⟩, ⟨2, _⟩ | ⟨2, _⟩, ⟨0, _⟩ | ⟨2, _⟩, ⟨1, _⟩ =>
+        simp [jacobianHierarchy, isogenyClassFamily]
 
 end MetaCodex.Examples
 
