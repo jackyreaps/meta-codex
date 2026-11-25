@@ -76,15 +76,17 @@ private theorem exists_collision_fin :
       have hVal := congrArg Fin.val hEq
       simp [last] at hVal
       omega
-    · let g : Fin (k + 1) → Fin (k + 1) := fun i =>
+    · let g : Fin (k + 1) → Fin k := fun i =>
         let y := f i.castSucc
         let z := f last
         if hLt : y.val < z.val then
-          ⟨y.val, Nat.lt_of_lt_of_le hLt (Nat.le_of_lt_succ z.isLt)⟩
+          ⟨y.val, by
+            have hz : z.val < k + 1 := z.isLt
+            omega⟩
         else
           ⟨y.val - 1, by
             have hNe : y.val ≠ z.val := fun h => hHit ⟨i, Fin.ext h⟩
-            have hy : y.val < k + 2 := y.isLt
+            have hy : y.val < k + 1 := y.isLt
             omega⟩
       rcases exists_collision_fin g with ⟨i, j, hNeq, hEqG⟩
       refine ⟨i.castSucc, j.castSucc, fun h => hNeq (Fin.castSucc_inj.mp h), ?_⟩
@@ -176,6 +178,7 @@ theorem partial_descent_fiber_refinement
           have hm : (auxLocal g).val < m := (auxLocal g).isLt
           have h1 : ((H.projectFiniteLocal g).val + 1) * m ≤ k * m :=
             Nat.mul_le_mul_right m hk
+          rw [Nat.add_mul, Nat.one_mul] at h1
           omega⟩
       analyticInvariant := H.analyticInvariant }
   apply graded_hierarchy_descent_obstruction combined family hSameInv hDistinctAnalytic
