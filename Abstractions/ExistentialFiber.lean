@@ -1,4 +1,4 @@
-import MetaCodex.Core.FieldProjection
+import Core.FieldProjection
 
 /-!
 # ExistentialFiber: Structural Fiber Unidentifiability Audit
