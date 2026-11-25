@@ -4,7 +4,7 @@
 Models multi-layer recursive transport chains (`Layer 0 → Layer 1 → ... → Layer n`)
 and proves (`sorry`-free):
 1. `vacuous_layer_irrelevant`: Carrying a `True`-valued geometric invariant alongside
-   a substantive state `α` adds zero deductive power.
+   a substantive state `α` adds zero deductive power (mutual inverse bijection with `α`).
 2. `bottleneck_interchangeability`: Whenever an `n`-layer tower factors through a single
    bottleneck interface `I`, any two lower towers reaching the same witness in `I`
    yield the exact same top-level conclusion.
@@ -29,14 +29,12 @@ structure VacuousScaffold (α : Type u) where
   vacuousTag : True := trivial
 
 /-- **Vacuous Layer Irrelevance Theorem:**
-    Every `VacuousScaffold α` is canonically equivalent to `α` itself, proving that
+    `VacuousScaffold α` is in explicit two-sided bijection with `α` itself, proving that
     transporting `True` across recursive layers adds zero structural constraint. -/
 theorem vacuous_layer_irrelevant (α : Type u) :
-    Nonempty (VacuousScaffold α ≃ α) :=
-  ⟨{ toFun := fun s => s.payload
-     invFun := fun a => { payload := a }
-     left_inv := fun s => by cases s; rfl
-     right_inv := fun _ => rfl }⟩
+    ∃ (toBase : VacuousScaffold α → α) (ofBase : α → VacuousScaffold α),
+      (∀ s, ofBase (toBase s) = s) ∧ (∀ a, toBase (ofBase a) = a) :=
+  ⟨fun s => s.payload, fun a => { payload := a }, fun s => by cases s; rfl, fun _ => rfl⟩
 
 /-- **Bottleneck Interchangeability Theorem:**
     If a top-level theorem `conclusion : I → Prop` consumes a lower recursive tower
