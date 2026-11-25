@@ -12,10 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install elan and Lean toolchain
-        run: |
-          curl https://lean-lang.org -sSf | sh -s -- -y --default-toolchain leanprover/lean4:v4.30.0
-          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+      - uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
 
       - name: Resolve X-files dependency and build MetaCodex
         run: |
