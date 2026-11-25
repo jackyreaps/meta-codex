@@ -4,7 +4,7 @@ defaultTargets = ["MetaCodex"]
 
 [[require]]
 name = "X-files"
-git = "https://github.com/jackyreap/X-files"
+git = "https://github.com/jackyreaps/X-files"
 rev = "main"
 
 [[lean_lib]]
