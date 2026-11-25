@@ -14,11 +14,10 @@ jobs:
 
       - uses: leanprover/lean-action@v1
         with:
-          auto-config: false
           build: false
 
       - name: Resolve X-files dependency and build MetaCodex
         run: |
           lake update
           lake exe cache get || true
-          lake build MetaCodex MetaCodex.Examples.HigherDimDemo
+          lake build MetaCodex Examples.HigherDimDemo
