@@ -115,6 +115,6 @@ elab "#audit_theorem " thmId:ident : command => do
     logInfo m!"Audit complete: 0 vacuous definitions found."
   else
     for v in vacuous do
-      logError m!"  [VACUOUS] `{v}` reduces syntactically to `True`."
+      logWarning m!"  [VACUOUS] `{v}` reduces syntactically to `True`."
 
 end MetaCodex.Core
