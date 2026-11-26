@@ -14,12 +14,16 @@ jobs:
 
       - name: Install Elan & Lean 4.35.0
         run: |
-          curl https://githubusercontent.com -sSf | sh -s -- -y --default-toolchain leanprover/lean4:v4.35.0
+          curl https://githubusercontent.com -sSf | sh -s -- -y --default-toolchain none
+          export PATH="$HOME/.elan/bin:$PATH"
+          elan toolchain install leanprover/lean4:v4.35.0
+          elan default leanprover/lean4:v4.35.0
           echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
       - name: Clone riemann-hypothesis-minimal and unpack 807 files
         run: |
-          git clone --depth 1 https://github.com/1337isnot1337/riemann-hypothesis-minimal rh-min
+          export PATH="$HOME/.elan/bin:$PATH"
+          git clone --depth 1 "https://github.com/1337isnot1337/riemann-hypothesis-minimal" rh-min
           lean --run rh-min/OneLineRH.lean grh-compact
 
       - name: Inspect toolchain, headline RiemannHypothesis, opaque/axiom declarations, and divClausesR_of
@@ -37,6 +41,7 @@ jobs:
 
       - name: Wire meta-codex into grh-compact and build
         run: |
+          export PATH="$HOME/.elan/bin:$PATH"
           cd grh-compact
           lake exe cache get || true
           cat << 'EOF' >> lakefile.toml
