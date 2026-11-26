@@ -19,7 +19,6 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           elan toolchain install leanprover/lean4:v4.35.0
           elan default leanprover/lean4:v4.35.0
-          lean --version
 
       - name: Clone + unpack grh-compact
         run: |
@@ -27,29 +26,33 @@ jobs:
           git clone --depth 1 https://github.com/1337isnot1337/riemann-hypothesis-minimal.git rh-min
           lean --run rh-min/OneLineRH.lean grh-compact
           test -d grh-compact/src
-          ls grh-compact | head
 
-      - name: Inspect Main, Statements, New, grh chain (no Mathlib build)
+      - name: Inspect Data + exists_family_covolumeSq_le (no Mathlib build)
         run: |
           cd grh-compact
-          echo "=== src/Main.lean ==="
-          cat src/Main.lean
-          echo "=== src/Statements.lean ==="
-          cat src/Statements.lean 2>/dev/null || echo "(no Statements.lean)"
-          echo "=== src/New/Main.lean ==="
-          cat src/New/Main.lean 2>/dev/null || echo "(no New/Main.lean)"
-          echo "=== Find grh / zeta_zeros_on_line / zeros_on_line ==="
-          grep -rnE "theorem[[:space:]]+(grh|zeta_zeros_on_line|zeros_on_line)|def[[:space:]]+(grh|zeta_zeros_on_line|zeros_on_line)|lemma[[:space:]]+(grh|zeta_zeros_on_line|zeros_on_line)" src 2>/dev/null | head -n 80
-          echo "=== Files in src/New ==="
-          find src/New -type f 2>/dev/null | sort
-          echo "=== Structures / inductives in src/New ==="
-          grep -rnE "^structure[[:space:]]+|^inductive[[:space:]]+" src/New 2>/dev/null | head -n 80
-          echo "=== divClausesR_of / anyGeometry / GeoP / GeoCl in src ==="
-          grep -rnE "divClausesR_of|anyGeometry|GeoP|GeoCl" src 2>/dev/null | head -n 40 || echo "(none)"
-          echo "=== Opaque / Axiom / Sorry in src/ ==="
-          grep -rnE "^[[:space:]]*(opaque|axiom|sorry)\b" src 2>/dev/null || echo "None in src/"
+          echo "=== Files in src/New/Data ==="
+          find src/New/Data -type f 2>/dev/null | sort
+          echo "=== structure Data / class Data (heads) ==="
+          grep -rnE "^structure[[:space:]]+Data|^class[[:space:]]+Data|^def[[:space:]]+Data\b" src/New 2>/dev/null | head -n 40
+          echo "=== Data structure body (first match file, limited) ==="
+          f=$(grep -rlE "^structure[[:space:]]+Data|^class[[:space:]]+Data" src/New/Data 2>/dev/null | head -n 1)
+          if [ -n "$f" ]; then
+            echo "FILE: $f"
+            # print from structure/class Data through ~80 lines
+            awk '/^structure Data|^class Data/{flag=1} flag{print; n++; if(n>100) exit}' "$f"
+          else
+            echo "(no structure Data found under Data/)"
+            grep -rnE "structure Data|class Data" src/New 2>/dev/null | head -n 20
+          fi
+          echo "=== exists_data ==="
+          grep -rnE "theorem[[:space:]]+exists_data|lemma[[:space:]]+exists_data|def[[:space:]]+exists_data" src/New 2>/dev/null | head -n 20
+          grep -rn -A 30 "exists_data" src/New/Data 2>/dev/null | head -n 80
+          echo "=== exists_family_covolumeSq_le statement ==="
+          grep -rn -A 40 "exists_family_covolumeSq_le" src/New/Endgame 2>/dev/null | head -n 120
+          echo "=== Opaque / Axiom / Sorry in src/New/Data and Endgame ==="
+          grep -rnE "^[[:space:]]*(opaque|axiom|sorry)\b" src/New/Data src/New/Endgame 2>/dev/null || echo "None"
 
-      - name: Optional Mathlib cache only
+      - name: Optional cache only
         continue-on-error: true
         timeout-minutes: 8
         run: |
