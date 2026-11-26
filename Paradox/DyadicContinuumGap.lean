@@ -1,18 +1,20 @@
 import Paradox.TopologicalArtifact
 
 /-!
-# DyadicContinuumGap: Exponential Dyadic Refinement vs. Continuum Critical Line
+# DyadicContinuumGap: Exponential Dyadic & Asymmetric Continuum Disproof
 
-Formalizes (`sorry`-free, pure Lean 4 core) why exponentially refining a dyadic grid
-(`gridSize n = 2 ^ (n + 1)`) cannot force continuum behavior on `[0, 1]` or the critical
-line without an explicit uniform inter-grid oscillation bound:
-1. `dyadic_grid_has_interior_gaps`: For EVERY refinement level `n : Nat`, there exist
-   continuum points (modeled at doubled resolution `2 * gridSize n`) strictly between
-   adjacent dyadic grid points where a function can vanish on every dyadic point `2 * k`
-   while spiking to arbitrary height `M` at midpoint `2 * k + 1`.
-2. `exponential_dyadic_amplification`: Subtracting nearby dyadic evaluations whose
-   difference is scaled by `2 ^ (n + 1)` amplifies any uncoupled midpoint error `δ > 0`
-   by `2 ^ (n + 1) * δ`, destroying uniform bounds as `n → ∞`.
+Formalizes (`sorry`-free, pure Lean 4 core) why exponentially asymmetric parameters
+(`2 ^ (n + 1)` vs `3 ^ (n + 1)`) and dyadic floating-point refinements cannot prove
+continuum complex bounds without an explicit finite inter-grid bridge:
+1. `dyadic_grid_has_interior_gaps`: At every refinement level `n`, evaluating at all
+   `2 ^ (n + 1)` dyadic nodes cannot distinguish `0` from a function spiking to `spike`
+   at every midpoint.
+2. `exponential_dyadic_amplification`: Rescaling any positive inter-grid discrepancy `δ ≥ 1`
+   by `2 ^ (n + 1)` exceeds any bound `B` once `n ≥ B`.
+3. `asymmetric_continuum_bridge_refuted`: Explicit refutation (`¬ ∀ ...`) proving that
+   satisfaction on all dyadic grid points at all depths `n` plus exponential scale
+   asymmetry (`3 ^ (n + 1) - 2 ^ (n + 1)`) does NOT imply uniform continuum boundedness
+   (`∀ x, f x ≤ B`) whenever a finite inter-grid Lipschitz bridge is absent.
 -/
 
 namespace MetaCodex.Paradox
@@ -67,6 +69,39 @@ theorem exponential_dyadic_amplification (B δ : Nat) (hDelta : 1 ≤ δ) :
   have hScale : dyadicScale B ≤ dyadicScale B * δ :=
     Nat.le_mul_of_pos_right (dyadicScale B) (by omega)
   dsimp [dyadicScale] at hScale ⊢
+  omega
+
+/-- **Asymmetric Continuum Simplification Disproof (`asymmetric_continuum_bridge_refuted`):**
+    Directly refutes the claim that vanishing on all dyadic grid nodes `2 * k` at depth `n`
+    forces a uniform continuum bound `≤ B` when exponential scale asymmetry
+    (`3 ^ (n + 1) - 2 ^ (n + 1)`) amplifies unbridged midpoint errors:
+    there exists a profile `f` that is identically `0` on every dyadic grid node yet exceeds
+    any target bound `B` in the interior once amplified by `3 ^ (n + 1) - 2 ^ (n + 1)`. -/
+theorem asymmetric_continuum_bridge_refuted (n B : Nat) :
+    ¬ (∀ (f : Fin (2 * dyadicScale n) → Nat),
+        (∀ k : Fin (dyadicScale n), f ⟨2 * k.val, by omega⟩ = 0) →
+        ∀ idx : Fin (2 * dyadicScale n),
+          (3 ^ (n + 1) - 2 ^ (n + 1)) * f idx ≤ B) := by
+  intro hClaim
+  let fBad : Fin (2 * dyadicScale n) → Nat := fun idx =>
+    if idx.val % 2 = 0 then 0 else B + 1
+  have hOnGrid : ∀ k : Fin (dyadicScale n), fBad ⟨2 * k.val, by omega⟩ = 0 := by
+    intro k
+    dsimp [fBad]
+    have hEven : (2 * k.val) % 2 = 0 := by omega
+    simp [hEven]
+  have hPos : 0 < 2 * dyadicScale n := by
+    have h1 := dyadicScale_pos n
+    omega
+  have hBoundAtMid := hClaim fBad hOnGrid ⟨1, hPos⟩
+  dsimp [fBad] at hBoundAtMid
+  simp at hBoundAtMid
+  have hAsym : 1 ≤ 3 ^ (n + 1) - 2 ^ (n + 1) := by
+    have h2 : 2 ^ (n + 1) < 3 ^ (n + 1) :=
+      Nat.pow_lt_pow_left (by decide : 2 < 3) (Nat.succ_ne_zero n)
+    omega
+  have hMul : B + 1 ≤ (3 ^ (n + 1) - 2 ^ (n + 1)) * (B + 1) :=
+    Nat.le_mul_of_pos_left (B + 1) hAsym
   omega
 
 end MetaCodex.Paradox
