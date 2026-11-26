@@ -1,22 +1,40 @@
 import Lean
 
 /-!
-# ConeAudit: Transitive Dependency Cone & Vacuity Scanner (Opaque-Safe)
+# ConeAudit: Opaque-Safe & Module-Filtered Transitive Dependency Cone Scanner
 
-Walks a theorem's transitive dependency cone using `allowOpaque := true` so `opaque`
-definitions cannot hide `True`-valued bodies, and explicitly flags any stripped
-`.opaqueInfo` or non-standard `.axiomInfo` boundaries in the active cone.
+Walks a theorem's transitive dependency cone using:
+1. `allowOpaque := true` (and explicit `.opaqueInfo` inspection) so `opaque` wrappers
+   cannot sever the dependency graph or hide `True`-peeling bodies.
+2. Module-origin filtering (`env.getModuleIdxFor?`) so imported Mathlib / stdlib
+   declarations (even those outside the `Mathlib.*` namespace, like `Complex.*` or `Nat.*`)
+   are skipped in O(1) without walking thousands of library lemmas.
 -/
 
 namespace MetaCodex.Core
 
 open Lean Elab Command Meta
 
-private def isStdLibPrefix (n : Name) : Bool :=
+private def isLibraryModuleName (modName : Name) : Bool :=
+  match modName.getRoot with
+
+  | `Lean | `Init | `Std | `Batteries | `Qq | `Aesop | `Mathlib | `ProofWidgets | `Plausible | `ImportGraph => true
+  | _ => false
+
+/-- Returns `true` if `n` originates from an imported standard library or Mathlib module
+    (or carries a standard library root namespace). -/
+def isExternalLibraryConst (env : Environment) (n : Name) : Bool :=
   match n.getRoot with
 
   | `Lean | `Init | `Std | `Batteries | `Qq | `Aesop | `Mathlib => true
-  | _ => false
+  | _ =>
+    match env.getModuleIdxFor? n with
+    | some idx =>
+      if h : idx.toNat < env.header.moduleNames.size then
+        isLibraryModuleName env.header.moduleNames[idx.toNat]
+      else
+        false
+    | none => false
 
 private def isStandardAxiom (n : Name) : Bool :=
   n == ``propext || n == ``Quot.sound || n == ``Classical.choice
@@ -43,8 +61,7 @@ private partial def collectExprConsts (e : Expr) (acc : NameSet := {}) : NameSet
   | .mdata _ inner | .proj _ _ inner => collectExprConsts inner acc
   | _ => acc
 
-/-- Walk the transitive dependency cone with `allowOpaque := true` so `opaque`
-    wrappers cannot sever the dependency graph. -/
+/-- Walk the transitive dependency cone with `allowOpaque := true` and O(1) module filtering. -/
 partial def collectOpaqueSafeCone (env : Environment) (root : Name) :
     NameSet × Array Name × Array Name :=
   let rec visit (worklist : List Name) (visited : NameSet)
@@ -53,7 +70,7 @@ partial def collectOpaqueSafeCone (env : Environment) (root : Name) :
     match worklist with
     | [] => (visited, opaqueBounds, customAxioms)
     | n :: rest =>
-      if visited.contains n || isStdLibPrefix n then
+      if visited.contains n || isExternalLibraryConst env n then
         visit rest visited opaqueBounds customAxioms
       else
         let visited' := visited.insert n
@@ -61,7 +78,6 @@ partial def collectOpaqueSafeCone (env : Environment) (root : Name) :
         | none => visit rest visited' opaqueBounds customAxioms
         | some cinfo =>
           let typeConsts := collectExprConsts cinfo.type
-          -- `allowOpaque := true` inspects `opaque` definitions in the same environment!
           let (valConsts, opaqueBounds', customAxioms') :=
             match cinfo with
             | .opaqueInfo v =>
