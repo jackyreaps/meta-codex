@@ -22,18 +22,26 @@ def existentialFiberHypothesis : Prop :=
 /-- Notice `_hf` is accepted as a `Prop` hypothesis and never referenced in the proof body
     (`#audit_passthrough` flags this automatically). -/
 theorem demoHeadlineTheorem (_hf : existentialFiberHypothesis) : 2 ≤ 4 := by
-  have _ := opaqueVacuousTag
   let m := transportManifold trivial
   have hBound : m.activeBound = 4 := rfl
   omega
 
+/-- Helper theorem referencing `opaqueVacuousTag` to verify `allowOpaque := true` detection. -/
+theorem opaqueTagTheorem : 1 ≤ 2 := by
+  let _ := opaqueVacuousTag
+  omega
+
 /--
-error:   [VACUOUS] `MetaCodex.Examples.opaqueVacuousTag` reduces syntactically to `True`.
----
-error:   [VACUOUS] `MetaCodex.Examples.vacuousManifoldTag` reduces syntactically to `True`.
+error: [VACUOUS] MetaCodex.Examples.vacuousManifoldTag reduces syntactically to True.
 -/
 #guard_msgs (drop info, drop warning) in
 #audit_theorem MetaCodex.Examples.demoHeadlineTheorem
+
+/--
+error: [VACUOUS] MetaCodex.Examples.opaqueVacuousTag reduces syntactically to True.
+-/
+#guard_msgs (drop info, drop warning) in
+#audit_theorem MetaCodex.Examples.opaqueTagTheorem
 
 #audit_fields demoHeadlineTheorem LayeredManifold
 #audit_passthrough demoHeadlineTheorem
