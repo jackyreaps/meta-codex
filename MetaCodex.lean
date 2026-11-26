@@ -7,3 +7,4 @@ import Abstractions.RecursiveTower
 import Abstractions.EffectiveDescent
 import Paradox.TopologicalArtifact
 import Paradox.Underdetermination
+import Paradox.TemplateUnderdetermination
