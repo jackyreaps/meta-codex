@@ -8,3 +8,4 @@ import Abstractions.EffectiveDescent
 import Paradox.TopologicalArtifact
 import Paradox.Underdetermination
 import Paradox.TemplateUnderdetermination
+import Paradox.DyadicContinuumGap
