@@ -23,8 +23,13 @@ theorem demoHeadlineTheorem (_hf : existentialFiberHypothesis) : 2 ≤ 4 := by
   have hBound : m.activeBound = 4 := rfl
   omega
 
--- Run all five MetaCodex audits:
+-- Verify that `#audit_theorem` catches `vacuousManifoldTag` (`#guard_msgs` passes CI green when matched):
+/--
+error:   [VACUOUS] `MetaCodex.Examples.vacuousManifoldTag` reduces syntactically to `True`.
+-/
+#guard_msgs(error, drop info, drop warning) in
 #audit_theorem MetaCodex.Examples.demoHeadlineTheorem
+
 #audit_fields demoHeadlineTheorem LayeredManifold
 #audit_passthrough demoHeadlineTheorem
 #audit_fibers demoHeadlineTheorem
