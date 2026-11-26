@@ -19,6 +19,7 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           elan toolchain install leanprover/lean4:v4.35.0
           elan default leanprover/lean4:v4.35.0
+          lean --version
 
       - name: Clone + unpack grh-compact
         run: |
@@ -26,24 +27,31 @@ jobs:
           git clone --depth 1 https://github.com/1337isnot1337/riemann-hypothesis-minimal.git rh-min
           lean --run rh-min/OneLineRH.lean grh-compact
           test -d grh-compact/src
+          ls grh-compact | head
 
-      - name: Extract Main, Statements, New.* (no Mathlib build)
+      - name: Inspect Main, Statements, New, grh chain (no Mathlib build)
         run: |
           cd grh-compact
           echo "=== src/Main.lean ==="
           cat src/Main.lean
           echo "=== src/Statements.lean ==="
           cat src/Statements.lean 2>/dev/null || echo "(no Statements.lean)"
-          echo "=== Files under src/New ==="
-          find src/New -type f 2>/dev/null | sort || find src -iname '*grh*' -o -iname '*zeta*' | sort
-          echo "=== grh / zeta_zeros_on_line defs ==="
-          grep -rnE "theorem[[:space:]]+(grh|zeta_zeros_on_line)|def[[:space:]]+(grh|zeta_zeros_on_line)|structure[[:space:]]+" src 2>/dev/null | head -n 80
+          echo "=== src/New/Main.lean ==="
+          cat src/New/Main.lean 2>/dev/null || echo "(no New/Main.lean)"
+          echo "=== Find grh / zeta_zeros_on_line / zeros_on_line ==="
+          grep -rnE "theorem[[:space:]]+(grh|zeta_zeros_on_line|zeros_on_line)|def[[:space:]]+(grh|zeta_zeros_on_line|zeros_on_line)|lemma[[:space:]]+(grh|zeta_zeros_on_line|zeros_on_line)" src 2>/dev/null | head -n 80
+          echo "=== Files in src/New ==="
+          find src/New -type f 2>/dev/null | sort
+          echo "=== Structures / inductives in src/New ==="
+          grep -rnE "^structure[[:space:]]+|^inductive[[:space:]]+" src/New 2>/dev/null | head -n 80
+          echo "=== divClausesR_of / anyGeometry / GeoP / GeoCl in src ==="
+          grep -rnE "divClausesR_of|anyGeometry|GeoP|GeoCl" src 2>/dev/null | head -n 40 || echo "(none)"
           echo "=== Opaque / Axiom / Sorry in src/ ==="
           grep -rnE "^[[:space:]]*(opaque|axiom|sorry)\b" src 2>/dev/null || echo "None in src/"
 
-      - name: Optional cache only (no full Mathlib compile)
+      - name: Optional Mathlib cache only
         continue-on-error: true
-        timeout-minutes: 10
+        timeout-minutes: 8
         run: |
           export PATH="$HOME/.elan/bin:$PATH"
           cd grh-compact
