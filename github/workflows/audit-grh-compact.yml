@@ -1,0 +1,48 @@
+name: Audit grh-compact (Lean 4.35.0)
+on:
+  workflow_dispatch:
+
+jobs:
+  audit-grh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout meta-codex
+        uses: actions/checkout@v4
+        with:
+          path: meta-codex
+
+      - name: Install Elan & Lean 4.35.0
+        run: |
+          curl https://githubusercontent.com -sSf | sh -s -- -y --default-toolchain leanprover/lean4:v4.35.0
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Clone riemann-hypothesis-minimal and unpack 807 files
+        run: |
+          git clone --depth 1 https://github.com rh-min
+          lean --run rh-min/OneLineRH.lean grh-compact
+
+      - name: Inspect toolchain, headline RiemannHypothesis, opaque/axiom declarations, and divClausesR_of
+        run: |
+          cd grh-compact
+          echo "=== lean-toolchain & lakefile ==="
+          cat lean-toolchain
+          cat lakefile.toml || cat lakefile.lean
+          echo "=== Headline RiemannHypothesis declarations ==="
+          grep -rnE "theorem[[:space:]]+.*RiemannHypothesis|def[[:space:]]+RiemannHypothesis|def[[:space:]]+riemannZeta" . | head -n 40
+          echo "=== Opaque / Axiom / Sorry scan ==="
+          grep -rnE "^[[:space:]]*(opaque|axiom|sorry)\b" . | head -n 50
+          echo "=== divClausesR_of occurrences ==="
+          grep -rn "divClausesR_of" . | head -n 25
+
+      - name: Wire meta-codex into grh-compact and build
+        run: |
+          cd grh-compact
+          lake exe cache get || true
+          cat << 'EOF' >> lakefile.toml
+
+          [[require]]
+          name = "meta-codex"
+          path = "../meta-codex"
+          EOF
+          lake build meta-codex
