@@ -1,9 +1,104 @@
-import ScaffoldingAudit
+import Lean
 
 /-!
-# ConeAudit: Transitive Dependency Cone & Vacuity Scanner
+# ConeAudit: Transitive Dependency Cone & Vacuity Scanner (Opaque-Safe)
 
-Re-exports `#audit_theorem` from `jackyreaps/X-files` (`ScaffoldingAudit`), which walks
-a theorem's transitive dependency cone and reports definitions whose bodies peel
-syntactically to `True`.
+Walks a theorem's transitive dependency cone using `allowOpaque := true` so `opaque`
+definitions cannot hide `True`-valued bodies, and explicitly flags any stripped
+`.opaqueInfo` or non-standard `.axiomInfo` boundaries in the active cone.
 -/
+
+namespace MetaCodex.Core
+
+open Lean Elab Command Meta
+
+private def isStdLibPrefix (n : Name) : Bool :=
+  match n.getRoot with
+
+  | `Lean | `Init | `Std | `Batteries | `Qq | `Aesop | `Mathlib => true
+  | _ => false
+
+private def isStandardAxiom (n : Name) : Bool :=
+  n == ``propext || n == ``Quot.sound || n == ``Classical.choice
+
+/-- Peel nested `∀` and `λ` binders to check if the core body is syntactically `True`. -/
+private partial def peelsToTrue : Expr → Bool
+  | .const ``True _ => true
+  | .forallE _ _ body _ => peelsToTrue body
+  | .lam _ _ body _ => peelsToTrue body
+  | .mdata _ inner => peelsToTrue inner
+  | _ => false
+
+/-- Collect all constant names referenced in an `Expr`. -/
+private partial def collectExprConsts (e : Expr) (acc : NameSet := {}) : NameSet :=
+  match e with
+  | .const n _ => acc.insert n
+  | .app fn arg => collectExprConsts arg (collectExprConsts fn acc)
+
+  | .lam _ ty body _ | .forallE _ ty body _ =>
+      collectExprConsts body (collectExprConsts ty acc)
+  | .letE _ ty val body _ =>
+      collectExprConsts body (collectExprConsts val (collectExprConsts ty acc))
+
+  | .mdata _ inner | .proj _ _ inner => collectExprConsts inner acc
+  | _ => acc
+
+/-- Walk the transitive dependency cone with `allowOpaque := true` so `opaque`
+    wrappers cannot sever the dependency graph. -/
+partial def collectOpaqueSafeCone (env : Environment) (root : Name) :
+    NameSet × Array Name × Array Name :=
+  let rec visit (worklist : List Name) (visited : NameSet)
+      (opaqueBounds : Array Name) (customAxioms : Array Name) :
+      NameSet × Array Name × Array Name :=
+    match worklist with
+    | [] => (visited, opaqueBounds, customAxioms)
+    | n :: rest =>
+      if visited.contains n || isStdLibPrefix n then
+        visit rest visited opaqueBounds customAxioms
+      else
+        let visited' := visited.insert n
+        match env.find? n with
+        | none => visit rest visited' opaqueBounds customAxioms
+        | some cinfo =>
+          let typeConsts := collectExprConsts cinfo.type
+          -- `allowOpaque := true` inspects `opaque` definitions in the same environment!
+          let (valConsts, opaqueBounds', customAxioms') :=
+            match cinfo with
+            | .opaqueInfo v =>
+                (collectExprConsts v.value, opaqueBounds.push n, customAxioms)
+            | .axiomInfo _ =>
+                let ax := if isStandardAxiom n then customAxioms else customAxioms.push n
+                ({}, opaqueBounds, ax)
+            | _ =>
+                match cinfo.value? (allowOpaque := true) with
+                | some val => (collectExprConsts val, opaqueBounds, customAxioms)
+                | none => ({}, opaqueBounds, customAxioms)
+          let next := (typeConsts.union valConsts).toList.filter (!visited'.contains ·)
+          visit (next ++ rest) visited' opaqueBounds' customAxioms'
+  visit [root] {} #[] #[]
+
+/-- `#audit_theorem <theoremName>` walks the full opaque-safe transitive cone and flags
+    vacuous (`True`-peeling) definitions, `opaque` boundaries, and custom axioms. -/
+elab "#audit_theorem " thmId:ident : command => do
+  let thmName ← liftCoreM <| realizeGlobalConstNoOverloadWithInfo thmId
+  let env ← getEnv
+  let (cone, opaqueBounds, customAxioms) := collectOpaqueSafeCone env thmName
+  let mut vacuous : Array Name := #[]
+  for c in cone do
+    if c != thmName then
+      if let some cinfo := env.find? c then
+        if let some val := cinfo.value? (allowOpaque := true) then
+          if peelsToTrue val || peelsToTrue cinfo.type then
+            vacuous := vacuous.push c
+  logInfo m!"Auditing opaque-safe dependency cone for: `{thmName}` ({cone.size} active constants)"
+  for op in opaqueBounds do
+    logWarning m!"  [OPAQUE BOUNDARY] `{op}` is declared `opaque` (body inspected via `allowOpaque := true`)."
+  for ax in customAxioms do
+    logWarning m!"  [CUSTOM AXIOM] `{ax}` is an unproved axiom in the active cone."
+  if vacuous.isEmpty then
+    logInfo m!"Audit complete: 0 vacuous definitions found."
+  else
+    for v in vacuous do
+      logError m!"  [VACUOUS] `{v}` reduces syntactically to `True`."
+
+end MetaCodex.Core
