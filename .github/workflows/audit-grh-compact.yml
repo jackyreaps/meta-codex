@@ -27,35 +27,18 @@ jobs:
           lean --run rh-min/OneLineRH.lean grh-compact
           test -d grh-compact/src
 
-      - name: Inspect Data + exists_family_covolumeSq_le (no Mathlib build)
+      - name: Inspect short_forms and enough_forms
         run: |
           cd grh-compact
-          echo "=== Files in src/New/Data ==="
-          find src/New/Data -type f 2>/dev/null | sort
-          echo "=== structure Data / class Data (heads) ==="
-          grep -rnE "^structure[[:space:]]+Data|^class[[:space:]]+Data|^def[[:space:]]+Data\b" src/New 2>/dev/null | head -n 40
-          echo "=== Data structure body (first match file, limited) ==="
-          f=$(grep -rlE "^structure[[:space:]]+Data|^class[[:space:]]+Data" src/New/Data 2>/dev/null | head -n 1)
-          if [ -n "$f" ]; then
-            echo "FILE: $f"
-            # print from structure/class Data through ~80 lines
-            awk '/^structure Data|^class Data/{flag=1} flag{print; n++; if(n>100) exit}' "$f"
-          else
-            echo "(no structure Data found under Data/)"
-            grep -rnE "structure Data|class Data" src/New 2>/dev/null | head -n 20
-          fi
-          echo "=== exists_data ==="
-          grep -rnE "theorem[[:space:]]+exists_data|lemma[[:space:]]+exists_data|def[[:space:]]+exists_data" src/New 2>/dev/null | head -n 20
-          grep -rn -A 30 "exists_data" src/New/Data 2>/dev/null | head -n 80
-          echo "=== exists_family_covolumeSq_le statement ==="
-          grep -rn -A 40 "exists_family_covolumeSq_le" src/New/Endgame 2>/dev/null | head -n 120
-          echo "=== Opaque / Axiom / Sorry in src/New/Data and Endgame ==="
-          grep -rnE "^[[:space:]]*(opaque|axiom|sorry)\b" src/New/Data src/New/Endgame 2>/dev/null || echo "None"
-
-      - name: Optional cache only
-        continue-on-error: true
-        timeout-minutes: 8
-        run: |
-          export PATH="$HOME/.elan/bin:$PATH"
-          cd grh-compact
-          lake exe cache get || true
+          echo "=== File head ==="
+          wc -l src/New/Endgame/ShortAndEnough.lean
+          echo "=== Declarations of short_forms / enough_forms ==="
+          grep -nE "theorem[[:space:]]+(short_forms|enough_forms)|lemma[[:space:]]+(short_forms|enough_forms)|def[[:space:]]+(short_forms|enough_forms)" src/New/Endgame/ShortAndEnough.lean
+          echo "=== short_forms context ==="
+          grep -n -B 5 -A 50 "short_forms" src/New/Endgame/ShortAndEnough.lean | head -n 200
+          echo "=== enough_forms context ==="
+          grep -n -B 5 -A 50 "enough_forms" src/New/Endgame/ShortAndEnough.lean | head -n 200
+          echo "=== heightPerRow_le / remainder_eq if present ==="
+          grep -nE "heightPerRow_le|remainder_eq|abs_mainHeight_add_remainder_le" src/New/Endgame/ShortAndEnough.lean | head -n 40
+          echo "=== Opaque / Axiom / Sorry in ShortAndEnough ==="
+          grep -nE "^[[:space:]]*(opaque|axiom|sorry)\b" src/New/Endgame/ShortAndEnough.lean || echo "None"
