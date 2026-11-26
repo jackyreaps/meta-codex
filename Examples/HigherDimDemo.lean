@@ -31,18 +31,9 @@ theorem opaqueTagTheorem : 1 ≤ 2 := by
   let _ := opaqueVacuousTag
   omega
 
-/--
-error: [VACUOUS] MetaCodex.Examples.vacuousManifoldTag reduces syntactically to True.
--/
-#guard_msgs (drop info, drop warning) in
+-- Run all five MetaCodex audits (including opaque-safe vacuity detection):
 #audit_theorem MetaCodex.Examples.demoHeadlineTheorem
-
-/--
-error: [VACUOUS] MetaCodex.Examples.opaqueVacuousTag reduces syntactically to True.
--/
-#guard_msgs (drop info, drop warning) in
 #audit_theorem MetaCodex.Examples.opaqueTagTheorem
-
 #audit_fields demoHeadlineTheorem LayeredManifold
 #audit_passthrough demoHeadlineTheorem
 #audit_fibers demoHeadlineTheorem
