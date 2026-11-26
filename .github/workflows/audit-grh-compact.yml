@@ -28,9 +28,8 @@ jobs:
           lean --run rh-min/OneLineRH.lean grh-compact
           test -f grh-compact/src/New/Endgame/ShortAndEnough.lean
 
-      - name: Inspect exists_few_translates and span_short_ramifiedColumns
+      - name: Inspect seesaw, span_short_ramifiedColumns, and ramifiedColumns_fill_rows in src/New/Data
         run: |
           cd grh-compact
-          grep -rn -E -B 5 -A 30 \
-            'exists_few_translates|span_short_ramifiedColumns' \
-            src/New/ || true
+          grep -rn -E -B 2 -A 15 'seesaw|span_short_ramifiedColumns|ramifiedColumns_fill_rows' src/New/Data/
+
