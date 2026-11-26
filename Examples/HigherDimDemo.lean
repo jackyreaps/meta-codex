@@ -5,6 +5,9 @@ namespace MetaCodex.Examples
 /-- A vacuous predicate disguised behind higher-dimensional parameters. -/
 def vacuousManifoldTag (_dim : Nat) (_order : Nat) : Prop := True
 
+/-- An `opaque` vacuous tag verifying that `allowOpaque := true` still catches it. -/
+opaque opaqueVacuousTag : True := trivial
+
 /-- A layered `Type`-valued structure carrying both an active bound and a passive tag. -/
 structure LayeredManifold where
   activeBound : Nat
@@ -19,15 +22,17 @@ def existentialFiberHypothesis : Prop :=
 /-- Notice `_hf` is accepted as a `Prop` hypothesis and never referenced in the proof body
     (`#audit_passthrough` flags this automatically). -/
 theorem demoHeadlineTheorem (_hf : existentialFiberHypothesis) : 2 ≤ 4 := by
+  have _ := opaqueVacuousTag
   let m := transportManifold trivial
   have hBound : m.activeBound = 4 := rfl
   omega
 
--- Verify that `#audit_theorem` catches `vacuousManifoldTag` (`#guard_msgs` passes CI green when matched):
 /--
+error:   [VACUOUS] `MetaCodex.Examples.opaqueVacuousTag` reduces syntactically to `True`.
+---
 error:   [VACUOUS] `MetaCodex.Examples.vacuousManifoldTag` reduces syntactically to `True`.
 -/
-#guard_msgs(error, drop info, drop warning) in
+#guard_msgs (drop info, drop warning) in
 #audit_theorem MetaCodex.Examples.demoHeadlineTheorem
 
 #audit_fields demoHeadlineTheorem LayeredManifold
