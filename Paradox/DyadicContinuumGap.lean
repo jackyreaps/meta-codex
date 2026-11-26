@@ -47,13 +47,12 @@ theorem dyadic_grid_has_interior_gaps (n spike : Nat) (hSpike : 0 < spike) :
     simp [hEven]
   · intro k
     dsimp [fZero, fSpike]
-    have hOdd : (2 * k.val + 1) % 2 ≠ 0 := by omega
-    simp [hOdd]
+    simp
   · intro hEq
-    have hPos : 0 < 2 * dyadicScale n := by
+    have hGt1 : 1 < 2 * dyadicScale n := by
       have h1 := dyadicScale_pos n
       omega
-    have hAt1 := congrFun hEq ⟨1, hPos⟩
+    have hAt1 := congrFun hEq ⟨1, hGt1⟩
     dsimp [fZero, fSpike] at hAt1
     simp at hAt1
     omega
@@ -65,7 +64,7 @@ theorem dyadic_grid_has_interior_gaps (n spike : Nat) (hSpike : 0 < spike) :
 theorem exponential_dyadic_amplification (B δ : Nat) (hDelta : 1 ≤ δ) :
     ∃ n : Nat, B < dyadicScale n * δ := by
   refine ⟨B, ?_⟩
-  have hPow : B + 1 ≤ 2 ^ (B + 1) := Nat.lt_two_pow_self
+  have hPow : B + 1 ≤ 2 ^ (B + 1) := Nat.le_of_lt Nat.lt_two_pow_self
   have hScale : dyadicScale B ≤ dyadicScale B * δ :=
     Nat.le_mul_of_pos_right (dyadicScale B) (by omega)
   dsimp [dyadicScale] at hScale ⊢
@@ -90,10 +89,10 @@ theorem asymmetric_continuum_bridge_refuted (n B : Nat) :
     dsimp [fBad]
     have hEven : (2 * k.val) % 2 = 0 := by omega
     simp [hEven]
-  have hPos : 0 < 2 * dyadicScale n := by
+  have hGt1 : 1 < 2 * dyadicScale n := by
     have h1 := dyadicScale_pos n
     omega
-  have hBoundAtMid := hClaim fBad hOnGrid ⟨1, hPos⟩
+  have hBoundAtMid := hClaim fBad hOnGrid ⟨1, hGt1⟩
   dsimp [fBad] at hBoundAtMid
   simp at hBoundAtMid
   have hAsym : 1 ≤ 3 ^ (n + 1) - 2 ^ (n + 1) := by
