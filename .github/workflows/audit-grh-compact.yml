@@ -12,15 +12,17 @@ jobs:
         with:
           path: meta-codex
 
-      - name: Install Lean 4.35.0
+      - name: Install Elan via lean-action
         uses: leanprover/lean-action@v1
         with:
-          toolchain: leanprover/lean4:v4.35.0
+          lake-package-directory: meta-codex
           build: false
 
       - name: Clone + unpack grh-compact
         run: |
-          git clone --depth 1 https://github.com/1337isnot1337/riemann-hypothesis-minimal.git  rh-min
+          elan toolchain install leanprover/lean4:v4.35.0
+          elan default leanprover/lean4:v4.35.0
+          git clone --depth 1 https://github.com/1337isnot1337/riemann-hypothesis-minimal.git rh-min
           lean --run rh-min/OneLineRH.lean grh-compact
 
       - name: Inspect exists_few_translates and span_short_ramifiedColumns
