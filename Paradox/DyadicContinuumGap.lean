@@ -52,10 +52,9 @@ theorem dyadic_grid_has_interior_gaps (n spike : Nat) (hSpike : 0 < spike) :
     have hGt1 : 1 < 2 * dyadicScale n := by
       have h1 := dyadicScale_pos n
       omega
-   have hAt1 := congrFun hEq ⟨1, hGt1⟩
+    have hAt1 := congrFun hEq ⟨1, hGt1⟩
     dsimp [fZero, fSpike] at hAt1
     omega
-
 
 /-- **Exponential Dyadic Amplification (`exponential_dyadic_amplification`):**
     When a dyadic cancellation scheme rescales residual errors by `2 ^ (n + 1)`,
@@ -94,7 +93,6 @@ theorem asymmetric_continuum_bridge_refuted (n B : Nat) :
     omega
   have hBoundAtMid := hClaim fBad hOnGrid ⟨1, hGt1⟩
   dsimp [fBad] at hBoundAtMid
-  simp at hBoundAtMid
   have hAsym : 1 ≤ 3 ^ (n + 1) - 2 ^ (n + 1) := by
     have h2 : 2 ^ (n + 1) < 3 ^ (n + 1) :=
       Nat.pow_lt_pow_left (by decide : 2 < 3) (Nat.succ_ne_zero n)
