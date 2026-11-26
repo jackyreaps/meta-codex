@@ -19,7 +19,7 @@ jobs:
 
       - name: Clone riemann-hypothesis-minimal and unpack 807 files
         run: |
-          git clone --depth 1 https://github.com rh-min
+          git clone --depth 1 https://github.com/1337isnot1337/riemann-hypothesis-minimal rh-min
           lean --run rh-min/OneLineRH.lean grh-compact
 
       - name: Inspect toolchain, headline RiemannHypothesis, opaque/axiom declarations, and divClausesR_of
