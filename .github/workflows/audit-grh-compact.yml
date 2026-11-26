@@ -5,7 +5,7 @@ on:
 jobs:
   audit-grh:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
       - name: Checkout meta-codex
         uses: actions/checkout@v4
@@ -19,57 +19,32 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           elan toolchain install leanprover/lean4:v4.35.0
           elan default leanprover/lean4:v4.35.0
-          lean --version
 
       - name: Clone + unpack grh-compact
         run: |
           export PATH="$HOME/.elan/bin:$PATH"
           git clone --depth 1 https://github.com/1337isnot1337/riemann-hypothesis-minimal.git rh-min
-          if [ -f rh-min/OneLineRH.lean ]; then
-            lean --run rh-min/OneLineRH.lean grh-compact
-          else
-            mv rh-min grh-compact
-          fi
-          test -d grh-compact
-          ls grh-compact | head
+          lean --run rh-min/OneLineRH.lean grh-compact
+          test -d grh-compact/src
 
-      - name: Inspect toolchain, headline, opaque/axiom/sorry
+      - name: Extract Main, Statements, New.* (no Mathlib build)
         run: |
           cd grh-compact
-          echo "=== lean-toolchain ==="
-          cat lean-toolchain 2>/dev/null || echo "(none)"
-          echo "=== lakefile ==="
-          cat lakefile.toml 2>/dev/null || cat lakefile.lean 2>/dev/null || echo "(none)"
-          echo "=== Headline RiemannHypothesis declarations ==="
-          grep -rnE "theorem[[:space:]]+.*RiemannHypothesis|def[[:space:]]+RiemannHypothesis|riemannHypothesis" src 2>/dev/null | head -n 40 || true
-          echo "=== Opaque / Axiom / Sorry (src only) ==="
-          grep -rnE "^[[:space:]]*(opaque|axiom|sorry)\b" src 2>/dev/null | head -n 50 || echo "(none in src)"
-          echo "=== Opaque / Axiom / Sorry (all) ==="
-          grep -rnE "^[[:space:]]*(opaque|axiom|sorry)\b" . --include="*.lean" 2>/dev/null | head -n 30 || true
-          echo "=== divClausesR_of ==="
-          grep -rn "divClausesR_of" . 2>/dev/null | head -n 15 || true
+          echo "=== src/Main.lean ==="
+          cat src/Main.lean
+          echo "=== src/Statements.lean ==="
+          cat src/Statements.lean 2>/dev/null || echo "(no Statements.lean)"
+          echo "=== Files under src/New ==="
+          find src/New -type f 2>/dev/null | sort || find src -iname '*grh*' -o -iname '*zeta*' | sort
+          echo "=== grh / zeta_zeros_on_line defs ==="
+          grep -rnE "theorem[[:space:]]+(grh|zeta_zeros_on_line)|def[[:space:]]+(grh|zeta_zeros_on_line)|structure[[:space:]]+" src 2>/dev/null | head -n 80
+          echo "=== Opaque / Axiom / Sorry in src/ ==="
+          grep -rnE "^[[:space:]]*(opaque|axiom|sorry)\b" src 2>/dev/null || echo "None in src/"
 
-      - name: Optional cached audit of Main (may skip if cache cold)
+      - name: Optional cache only (no full Mathlib compile)
         continue-on-error: true
+        timeout-minutes: 10
         run: |
           export PATH="$HOME/.elan/bin:$PATH"
           cd grh-compact
           lake exe cache get || true
-          if ! grep -q 'name = "meta-codex"' lakefile.toml 2>/dev/null; then
-            cat << 'EOF' >> lakefile.toml
-
-          [[require]]
-          name = "meta-codex"
-          path = "../meta-codex"
-          EOF
-          fi
-          cat << 'EOF' > src/MetaCodexAudit.lean
-          import Main
-          -- adjust import if your module path differs
-          #check (riemannHypothesis : _root_.RiemannHypothesis)
-          #print axioms riemannHypothesis
-          EOF
-          # Prefer env lean; do not require a full cold rebuild
-          lake update || true
-          lake build Main 2>/dev/null || lake build 2>/dev/null || true
-          lake env lean src/MetaCodexAudit.lean || true
