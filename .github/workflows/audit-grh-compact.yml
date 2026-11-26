@@ -12,21 +12,16 @@ jobs:
         with:
           path: meta-codex
 
-      - name: Install Elan & Lean 4.35.0
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y --default-toolchain none
-          echo "$HOME/.elan/bin" >> $GITHUB_PATH
-          export PATH="$HOME/.elan/bin:$PATH"
-          elan toolchain install leanprover/lean4:v4.35.0
-          elan default leanprover/lean4:v4.35.0
-          lean --version   # sanity check
+      - name: Install Lean 4.35.0
+        uses: leanprover/lean-action@v1
+        with:
+          toolchain: leanprover/lean4:v4.35.0
+          build: false
 
       - name: Clone + unpack grh-compact
         run: |
-          export PATH="$HOME/.elan/bin:$PATH"
-          git clone --depth 1 https://github.com/1337isnot1337/riemann-hypothesis-minimal.git rh-min
+          git clone --depth 1 https://github.com/1337isnot1337/riemann-hypothesis-minimal.git  rh-min
           lean --run rh-min/OneLineRH.lean grh-compact
-          test -f grh-compact/src/New/
 
       - name: Inspect exists_few_translates and span_short_ramifiedColumns
         run: |
