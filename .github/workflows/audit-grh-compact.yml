@@ -19,6 +19,7 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           elan toolchain install leanprover/lean4:v4.35.0
           elan default leanprover/lean4:v4.35.0
+          lean --version   # sanity check
 
       - name: Clone + unpack grh-compact
         run: |
@@ -27,8 +28,9 @@ jobs:
           lean --run rh-min/OneLineRH.lean grh-compact
           test -f grh-compact/src/New/Endgame/ShortAndEnough.lean
 
-      - name: Print ShortAndEnough.lean
+      - name: Inspect exists_few_translates and span_short_ramifiedColumns
         run: |
           cd grh-compact
-          wc -l src/New/Endgame/ShortAndEnough.lean
-          cat src/New/Endgame/ShortAndEnough.lean
+          grep -rn -E -B 5 -A 30 \
+            'exists_few_translates|span_short_ramifiedColumns' \
+            src/New/ || true
