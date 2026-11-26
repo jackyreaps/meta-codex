@@ -52,10 +52,10 @@ theorem dyadic_grid_has_interior_gaps (n spike : Nat) (hSpike : 0 < spike) :
     have hGt1 : 1 < 2 * dyadicScale n := by
       have h1 := dyadicScale_pos n
       omega
-    have hAt1 := congrFun hEq ⟨1, hGt1⟩
+   have hAt1 := congrFun hEq ⟨1, hGt1⟩
     dsimp [fZero, fSpike] at hAt1
-    simp at hAt1
     omega
+
 
 /-- **Exponential Dyadic Amplification (`exponential_dyadic_amplification`):**
     When a dyadic cancellation scheme rescales residual errors by `2 ^ (n + 1)`,
