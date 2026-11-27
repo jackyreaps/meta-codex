@@ -29,7 +29,7 @@ def collectActiveCone (env : Environment) (root : Name) : Array Name := Id.run d
     ordered := ordered.push curr
     if let some cinfo := env.find? curr then
       let deps := cinfo.type.getUsedConstants.toList ++
-        (match cinfo.value? with | some v => v.getUsedConstants.toList | none => [])
+        (match cinfo.value? (allowOpaque := true) with | some v => v.getUsedConstants.toList | none => [])
       queue := queue ++ deps.eraseDups
   return ordered
 
@@ -86,7 +86,7 @@ elab "#audit_fields " thmId:ident structId:ident : command => do
     if let some cinfo := env.find? c then
       let (_, st) := (do
         scanExprForStruct structName recNames projConstMap cinfo.type
-        if let some v := cinfo.value? then
+        if let some v := cinfo.value? (allowOpaque := true) then
           scanExprForStruct structName recNames projConstMap v).run exprState
       exprState := st
   let (_, openedIdx, usedRec) := exprState
