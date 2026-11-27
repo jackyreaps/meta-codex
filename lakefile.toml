@@ -7,12 +7,16 @@ name = "MetaCodex"
 
 [[lean_lib]]
 name = "Core"
+globs = ["Core.+"]
 
 [[lean_lib]]
 name = "Abstractions"
+globs = ["Abstractions.+"]
 
 [[lean_lib]]
 name = "Paradox"
+globs = ["Paradox.+"]
 
 [[lean_lib]]
 name = "Examples"
+globs = ["Examples.+"]
