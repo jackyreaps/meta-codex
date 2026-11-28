@@ -1,155 +1,112 @@
-name: Audit Percolator-CLI Round 4 (mainnet 887ba02)
+name: Audit Percolator Bug 4 (STOXX50/SOL hybrid)
 
 on:
   workflow_dispatch:
     inputs:
-      run_live_survey:
-        description: "Run pnpm lean:survey against SOLANA_RPC_URL (read-only)"
+      run_liquidation_fork:
+        description: "Run LiteSVM/surfpool fork tests for partial-liquidation atomicity"
         type: boolean
         default: false
 
 permissions:
   contents: read
 
-concurrency:
-  group: audit-percolator-cli-r4
-  cancel-in-progress: true
-
 jobs:
-  audit-client:
+  bug4-audit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       OWNER: aeyakovenko
-      LEAN_SHA: "887ba02"          # mainnet round-4 core commit
-      CLI_REF: "master"            # audit tip; pin to a SHA for reproducibility
-      R3_CLI_SHA: "5ba2b70"        # last client that parses 400-byte round-3 markets
-      PROGRAM_ID: "EUj4Jj8SY3MpkboazJWLeUMmZjCAwwaUhkAGXZQNfLnB"
+      ENGINE_SHA: "1dc4466e1a6c3532f2781bc242fa4e4033751fb6"   # Bug 4 pinned engine
+      WRAPPER_SHA: "f626639"                                   # Bug 4 pinned wrapper
+      MARKET: "STOXX50/SOL-20x"                                # Bug 4 hybrid market
 
     steps:
-      - name: Clone percolator-cli and percolator-lean
+      - name: Clone Bug 4 pinned commits
         run: |
           set -euo pipefail
+          git clone "https://github.com/${OWNER}/percolator.git"
+          git -C percolator checkout --detach "${ENGINE_SHA}"
+          git clone "https://github.com/${OWNER}/percolator-prog.git"
+          git -C percolator-prog checkout --detach "${WRAPPER_SHA}"
           git clone "https://github.com/${OWNER}/percolator-cli.git"
-          git -C percolator-cli checkout --detach "${CLI_REF}"
-          git clone "https://github.com/${OWNER}/percolator-lean.git"
-          git -C percolator-lean checkout --detach "${LEAN_SHA}"
-          echo "CLI HEAD:  $(git -C percolator-cli rev-parse HEAD)"
-          echo "LEAN HEAD: $(git -C percolator-lean rev-parse HEAD)"
+          echo "ENGINE:  $(git -C percolator rev-parse HEAD)"
+          echo "WRAPPER: $(git -C percolator-prog rev-parse HEAD)"
 
-      - name: Setup Node + pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: percolator-cli/pnpm-lock.yaml
-
-      - name: Install, build, type-check
-        run: |
-          set -euo pipefail
-          cd percolator-cli
-          pnpm install --frozen-lockfile
-          pnpm build
-          pnpm exec tsc --noEmit
-
-      - name: Dump repo structure (for artifact review)
+      - name: Dump Bug 4 hybrid/EWMA logic
         run: |
           set -euo pipefail
           {
-            echo "=== percolator-cli tree (src/, scripts/) ==="
-            find percolator-cli/src percolator-cli/scripts -type f 2>/dev/null | sort || true
+            echo "=== WRAPPER: hybrid mode + EWMA target ==="
+            sed -n '3800,3900p' percolator-prog/src/percolator.rs
             echo
-            echo "=== package.json scripts ==="
-            node -e 'console.log(JSON.stringify(require("./percolator-cli/package.json").scripts, null, 2))'
-          } | tee percolator-cli/structure.log
+            echo "=== WRAPPER: dynamic trade fee ==="
+            sed -n '4660,4740p' percolator-prog/src/percolator.rs
+            echo
+            echo "=== WRAPPER: TradeNoCpi EWMA update + same-price guard ==="
+            sed -n '7830,7920p' percolator-prog/src/percolator.rs
+            echo
+            echo "=== ENGINE: bounded price step cap ==="
+            sed -n '3980,4060p' percolator/src/percolator.rs
+            echo
+            echo "=== ENGINE: liquidation + post-partial health ==="
+            sed -n '8220,8320p' percolator/src/percolator.rs
+          } > bug4-source-dump.log
 
-      - name: 416-byte ABI audit — hard-coded sizes and offsets
+      - name: Grep Bug 4 attack-surface symbols
         run: |
           set -euo pipefail
-          cd percolator-cli
           {
-            echo "=== MARKET SIZE / OFFSET CONSTANTS ==="
-            grep -rnE '\b(400|416|MARKET_SIZE|MARKET_LEN|MARKET_BYTES|OFF_)\b' \
-              src/ --include='*.ts' || echo "(no matches)"
+            echo "=== HYBRID / EWMA / STALE ==="
+            grep -rnE '\b(hybrid_after_hours|hybrid_soft_stale|mark_ewma|EWMA|stale)\b' \
+              percolator-prog/src percolator/src --include='*.rs' || true
             echo
-            echo "=== PARSER / BUILDER SYMBOLS ==="
-            grep -rnE '\b(parseMarket|buildMarket|deserializeMarket|serializeMarket|decodeMarket|encodeMarket)\b' \
-              src/ --include='*.ts' || echo "(no matches)"
+            echo "=== LIQUIDATION ATOMICITY ==="
+            grep -rnE '\b(liquidat|partial_liquidat|post_partial|atomic)\b' \
+              percolator-prog/src percolator/src --include='*.rs' || true
             echo
-            echo "=== ROUND-3 (400-byte) RESIDUE CHECK ==="
-            grep -rnE '\b(400|round.?3|v3|legacy)\b' \
-              src/ --include='*.ts' -i || echo "(no matches)"
-          } | tee abi-audit.log
+            echo "=== INSURANCE WITHDRAW AUTH ==="
+            grep -rnE '\b(WithdrawInsuranceLimited|insurance_operator|withdraw_insurance)\b' \
+              percolator-prog/src percolator/src --include='*.rs' || true
+            echo
+            echo "=== 3-LEG COMPOSITE (CLI) ==="
+            grep -rnE '\b(three.leg|STOXX|EUR|composite|HYBRID_AFTER_HOURS)\b' \
+              percolator-cli/src percolator-cli/scripts --include='*.ts' || true
+          } | tee bug4-grep.log
 
-      - name: Dump full parser and constants source (for manual review)
+      - name: Dump CLI oracle and bounty4 status helpers
         run: |
           set -euo pipefail
-          cd percolator-cli
           {
-            for f in $(find src -type f -name '*.ts' | grep -Ei '(parser|constant|instruction|market|lean)'); do
-              echo "========== ${f} =========="
-              cat "${f}"
-              echo
-            done
-          } > parser-dump.log
-
-      - name: Diff client's Market handling vs last 400-byte client
-        run: |
-          set -euo pipefail
-          cd percolator-cli
-          if git cat-file -e "${R3_CLI_SHA}^{commit}" 2>/dev/null; then
-            git diff "${R3_CLI_SHA}..HEAD" -- src/ \
-              | sed -n '1,800p' > client-abi-diff.log
-            echo "=== client-abi-diff.log (${R3_CLI_SHA}..HEAD) ==="
-            cat client-abi-diff.log
-          else
-            echo "R3_CLI_SHA ${R3_CLI_SHA} not present (shallow clone?) — skipping" | tee client-abi-diff.log
-          fi
-
-      - name: Cross-check Lean 416-byte Market layout vs client offsets
-        run: |
-          set -euo pipefail
-          cd percolator-lean
-          {
-            echo "=== Lean Market structure (887ba02) ==="
-            grep -rnE 'structure\s+Market|inductive\s+Market|def\s+MARKET_(SIZE|LEN|BYTES)' \
-              --include='*.lean' . || echo "(no matches)"
+            echo "=== three-leg-composite.ts ==="
+            cat percolator-cli/src/oracle/three-leg-composite.ts 2>/dev/null || true
             echo
-            echo "=== Lean axioms / sorry in round-4 scope ==="
-            grep -rnE '\b(axiom|sorry|native_decide|implemented_by|extern|opaque)\b' \
-              --include='*.lean' . \
-              --exclude-dir=.git --exclude-dir=.lake || echo "(no matches)"
-          } | tee lean-market-layout.log
+            echo "=== bounty4-status.ts ==="
+            cat percolator-cli/scripts/bounty4-status.ts 2>/dev/null || true
+          } > bug4-cli-helpers.log
 
-      - name: Live read-only invariant survey
-        if: ${{ inputs.run_live_survey }}
+      - name: Partial-liquidation atomicity fork test
+        if: ${{ inputs.run_liquidation_fork }}
         continue-on-error: true
-        env:
-          SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
         run: |
           set -euo pipefail
-          cd percolator-cli
-          if [ -z "${SOLANA_RPC_URL:-}" ]; then
-            echo "SOLANA_RPC_URL secret not set — skipping live survey."
-            exit 0
-          fi
-          pnpm lean:survey 2>&1 | tee live-survey.log
+          cd percolator-prog
+          # Reproduce the safe-audit note's suggested test:
+          # does every wrapper path preserve atomicity when a candidate
+          # partial liquidation fails after engine-side mutation?
+          # Adjust harness name to match the pinned tree.
+          cargo test --release liquidation_atomicity -- --nocapture 2>&1 \
+            | tee ../liquidation-atomicity.log || true
 
-      - name: Upload audit artifacts
+      - name: Upload Bug 4 audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: percolator-cli-r4-audit-${{ github.run_id }}
+          name: percolator-bug4-${{ github.run_id }}
           path: |
-            percolator-cli/structure.log
-            percolator-cli/abi-audit.log
-            percolator-cli/parser-dump.log
-            percolator-cli/client-abi-diff.log
-            percolator-cli/live-survey.log
-            percolator-lean/lean-market-layout.log
+            bug4-source-dump.log
+            bug4-grep.log
+            bug4-cli-helpers.log
+            liquidation-atomicity.log
           if-no-files-found: warn
           retention-days: 30
