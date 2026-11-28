@@ -1,112 +1,68 @@
-name: Audit Percolator Bug 4 (STOXX50/SOL hybrid)
+name: Audit Percolator Bug 4 (BTC/USD mainnet 887ba02)
 
 on:
   workflow_dispatch:
-    inputs:
-      run_liquidation_fork:
-        description: "Run LiteSVM/surfpool fork tests for partial-liquidation atomicity"
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
 jobs:
-  bug4-audit:
+  bug4:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      OWNER: aeyakovenko
-      ENGINE_SHA: "1dc4466e1a6c3532f2781bc242fa4e4033751fb6"   # Bug 4 pinned engine
-      WRAPPER_SHA: "f626639"                                   # Bug 4 pinned wrapper
-      MARKET: "STOXX50/SOL-20x"                                # Bug 4 hybrid market
+      ENGINE_SHA: "1dc4466e1a6c3532f2781bc242fa4e4033751fb6"
+      WRAPPER_SHA: "f626639"
+      MARKET: "4EWHoCLweWAbb1DZ2sUfLRLnL9xvNJEwhnekaV7qthAp"
 
     steps:
-      - name: Clone Bug 4 pinned commits
+      - name: Clone pinned engine, wrapper, CLI
         run: |
           set -euo pipefail
-          git clone "https://github.com/${OWNER}/percolator.git"
-          git -C percolator checkout --detach "${ENGINE_SHA}"
-          git clone "https://github.com/${OWNER}/percolator-prog.git"
-          git -C percolator-prog checkout --detach "${WRAPPER_SHA}"
-          git clone "https://github.com/${OWNER}/percolator-cli.git"
-          echo "ENGINE:  $(git -C percolator rev-parse HEAD)"
-          echo "WRAPPER: $(git -C percolator-prog rev-parse HEAD)"
+          git clone https://github.com/aeyakovenko/percolator.git
+          git -C percolator checkout --detach "$ENGINE_SHA"
+          git clone https://github.com/aeyakovenko/percolator-prog.git
+          git -C percolator-prog checkout --detach "$WRAPPER_SHA"
+          git clone https://github.com/aeyakovenko/percolator-cli.git
 
-      - name: Dump Bug 4 hybrid/EWMA logic
-        run: |
-          set -euo pipefail
-          {
-            echo "=== WRAPPER: hybrid mode + EWMA target ==="
-            sed -n '3800,3900p' percolator-prog/src/percolator.rs
-            echo
-            echo "=== WRAPPER: dynamic trade fee ==="
-            sed -n '4660,4740p' percolator-prog/src/percolator.rs
-            echo
-            echo "=== WRAPPER: TradeNoCpi EWMA update + same-price guard ==="
-            sed -n '7830,7920p' percolator-prog/src/percolator.rs
-            echo
-            echo "=== ENGINE: bounded price step cap ==="
-            sed -n '3980,4060p' percolator/src/percolator.rs
-            echo
-            echo "=== ENGINE: liquidation + post-partial health ==="
-            sed -n '8220,8320p' percolator/src/percolator.rs
-          } > bug4-source-dump.log
-
-      - name: Grep Bug 4 attack-surface symbols
+      - name: Dump liquidation Ok(false) path and finalization
         run: |
           set -euo pipefail
           {
-            echo "=== HYBRID / EWMA / STALE ==="
-            grep -rnE '\b(hybrid_after_hours|hybrid_soft_stale|mark_ewma|EWMA|stale)\b' \
-              percolator-prog/src percolator/src --include='*.rs' || true
+            echo "=== liquidate_at_oracle_internal (full body) ==="
+            grep -n "fn liquidate_at_oracle_internal" -A 200 percolator/src/percolator.rs \
+              || grep -n "fn liquidate_at_oracle_internal" -A 200 percolator-prog/src/percolator.rs
             echo
-            echo "=== LIQUIDATION ATOMICITY ==="
-            grep -rnE '\b(liquidat|partial_liquidat|post_partial|atomic)\b' \
-              percolator-prog/src percolator/src --include='*.rs' || true
+            echo "=== finalize_touched_accounts_post_live ==="
+            grep -n "fn finalize_touched_accounts_post_live" -A 120 percolator/src/percolator.rs \
+              || grep -n "fn finalize_touched_accounts_post_live" -A 120 percolator-prog/src/percolator.rs
             echo
-            echo "=== INSURANCE WITHDRAW AUTH ==="
-            grep -rnE '\b(WithdrawInsuranceLimited|insurance_operator|withdraw_insurance)\b' \
-              percolator-prog/src percolator/src --include='*.rs' || true
-            echo
-            echo "=== 3-LEG COMPOSITE (CLI) ==="
-            grep -rnE '\b(three.leg|STOXX|EUR|composite|HYBRID_AFTER_HOURS)\b' \
-              percolator-cli/src percolator-cli/scripts --include='*.ts' || true
-          } | tee bug4-grep.log
+            echo "=== assert_public_postconditions ==="
+            grep -rn "assert_public_postconditions" -A 80 percolator/src percolator-prog/src --include='*.rs' || true
+          } > liquidation-atomicity.log
 
-      - name: Dump CLI oracle and bounty4 status helpers
+      - name: Dump CLI PropAMM and stale-mark close path
         run: |
           set -euo pipefail
           {
-            echo "=== three-leg-composite.ts ==="
-            cat percolator-cli/src/oracle/three-leg-composite.ts 2>/dev/null || true
+            echo "=== ROUND5-REHEARSAL.md ==="
+            cat percolator-cli/ROUND5-REHEARSAL.md 2>/dev/null || echo "(missing)"
             echo
-            echo "=== bounty4-status.ts ==="
-            cat percolator-cli/scripts/bounty4-status.ts 2>/dev/null || true
-          } > bug4-cli-helpers.log
+            echo "=== lean-attack.ts ==="
+            cat percolator-cli/scripts/lean-attack.ts 2>/dev/null || echo "(missing)"
+            echo
+            echo "=== _lean-builtin-funding.ts ==="
+            cat percolator-cli/scripts/_lean-builtin-funding.ts 2>/dev/null || echo "(missing)"
+            echo
+            echo "=== tradeWithMatcherFresh signature ==="
+            grep -rn "tradeWithMatcherFresh" -A 40 percolator-cli/src --include='*.ts' || true
+          } > propamm-attack-surface.log
 
-      - name: Partial-liquidation atomicity fork test
-        if: ${{ inputs.run_liquidation_fork }}
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          cd percolator-prog
-          # Reproduce the safe-audit note's suggested test:
-          # does every wrapper path preserve atomicity when a candidate
-          # partial liquidation fails after engine-side mutation?
-          # Adjust harness name to match the pinned tree.
-          cargo test --release liquidation_atomicity -- --nocapture 2>&1 \
-            | tee ../liquidation-atomicity.log || true
-
-      - name: Upload Bug 4 audit artifacts
+      - name: Upload
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: percolator-bug4-${{ github.run_id }}
+          name: percolator-bug4-r4
           path: |
-            bug4-source-dump.log
-            bug4-grep.log
-            bug4-cli-helpers.log
             liquidation-atomicity.log
-          if-no-files-found: warn
-          retention-days: 30
+            propamm-attack-surface.log
