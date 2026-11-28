@@ -7,11 +7,11 @@ jobs:
   inspect-r4:
     runs-on: ubuntu-latest
     steps:
-      - name: Clone percolator-lean at 887ba02
+      - name: Clone percolator-lean (887ba02) & percolator-cli
         run: |
           git clone https://github.com
-          cd percolator-lean
-          git checkout 887ba02
+          (cd percolator-lean && git checkout 887ba02)
+          git clone --depth 1 https://github.com
 
       - name: Inspect recent commits & 416-byte ABI diff (9b45ad1..887ba02)
         run: |
@@ -21,10 +21,11 @@ jobs:
           echo "=== DIFF 9b45ad1^..887ba02 ==="
           git diff 9b45ad1^..887ba02
 
-      - name: Check Spec, Refinement, and Funding Engine surfaces
+      - name: Inspect file tree, axioms/sorry, and prior attack scripts
         run: |
-          cd percolator-lean
-          echo "=== FILE TREE ==="
-          find . -maxdepth 3 -not -path '*/.*'
-          echo "=== AXIOMS / SORRY / UNSAFE ==="
-          grep -rnE "axiom |sorry|unsafe|implemented_by|extern" Percolator/ || true
+          echo "=== PERCOLATOR-LEAN TREE ==="
+          find percolator-lean -maxdepth 3 -not -path '*/.*'
+          echo "=== AXIOMS / SORRY / UNSAFE / EXTERN ==="
+          grep -rnE "axiom |sorry|unsafe|implemented_by|extern" percolator-lean/ || true
+          echo "=== PRIOR BOUNTY SCRIPTS IN PERCOLATOR-CLI ==="
+          ls -la percolator-cli/scripts/ || true
