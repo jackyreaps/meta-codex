@@ -1,0 +1,30 @@
+name: Audit Percolator Round 4 (887ba02)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect-r4:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone percolator-lean at 887ba02
+        run: |
+          git clone https://github.com
+          cd percolator-lean
+          git checkout 887ba02
+
+      - name: Inspect recent commits & 416-byte ABI diff (9b45ad1..887ba02)
+        run: |
+          cd percolator-lean
+          echo "=== RECENT COMMITS ==="
+          git log -n 12 --oneline
+          echo "=== DIFF 9b45ad1^..887ba02 ==="
+          git diff 9b45ad1^..887ba02
+
+      - name: Check Spec, Refinement, and Funding Engine surfaces
+        run: |
+          cd percolator-lean
+          echo "=== FILE TREE ==="
+          find . -maxdepth 3 -not -path '*/.*'
+          echo "=== AXIOMS / SORRY / UNSAFE ==="
+          grep -rnE "axiom |sorry|unsafe|implemented_by|extern" Percolator/ || true
