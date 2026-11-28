@@ -1,4 +1,4 @@
-name: Audit Percolator Bug 4 (BTC/USD mainnet 887ba02)
+name: Fetch Bug 4 Live State & Round 5 Scripts
 
 on:
   workflow_dispatch:
@@ -7,62 +7,164 @@ permissions:
   contents: read
 
 jobs:
-  bug4:
+  fetch-bug4:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 15
     env:
-      ENGINE_SHA: "1dc4466e1a6c3532f2781bc242fa4e4033751fb6"
-      WRAPPER_SHA: "f626639"
+      RPC_URL: "https://api.mainnet-beta.solana.com"
       MARKET: "4EWHoCLweWAbb1DZ2sUfLRLnL9xvNJEwhnekaV7qthAp"
+      LP_PORTFOLIO: "FZ2C2kHZAumbmW4fSTgPbFbYYsHEwGEoBNDzVSW5UUCQ"
+      AMM_CTX: "6A7KGg4LgJhCr3qEGk6qNDPpEteTP3Svzovxa9pW6Te9"
+      OWNER: "aeyakovenko"
 
     steps:
-      - name: Clone pinned engine, wrapper, CLI
-        run: |
-          set -euo pipefail
-          git clone https://github.com/aeyakovenko/percolator.git
-          git -C percolator checkout --detach "$ENGINE_SHA"
-          git clone https://github.com/aeyakovenko/percolator-prog.git
-          git -C percolator-prog checkout --detach "$WRAPPER_SHA"
-          git clone https://github.com/aeyakovenko/percolator-cli.git
+      - name: Setup Node + pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-      - name: Dump liquidation Ok(false) path and finalization
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Clone repos
         run: |
           set -euo pipefail
+          git clone --depth 1 "https://github.com/${OWNER}/percolator-cli.git"
+          git clone "https://github.com/${OWNER}/percolator-lean.git"
+          git -C percolator-lean checkout --detach 887ba02
+
+      - name: Install deps
+        run: |
+          set -euo pipefail
+          cd percolator-cli
+          pnpm install --frozen-lockfile || pnpm install
+
+      - name: Write fetch script
+        run: |
+          set -euo pipefail
+          cat > percolator-cli/fetch-bug4.ts <<'EOF'
+          import { Connection, PublicKey } from "@solana/web3.js";
+          import * as lean from "./src/lean/index.ts";
+
+          const c = new Connection(process.env.RPC_URL!, "confirmed");
+          const ser = (_: string, v: unknown) =>
+            typeof v === "bigint" ? v.toString() : v;
+
+          const get = async (label: string, addr: string) => {
+            const k = new PublicKey(addr);
+            const acc = await c.getAccountInfo(k);
+            if (!acc) {
+              console.log(`=== ${label} (${addr}) ===`);
+              console.log("(account not found / not owned by expected program)");
+              return null;
+            }
+            console.log(`=== ${label} (${addr}) ===`);
+            console.log(`owner=${acc.owner.toBase58()} lamports=${acc.lamports} size=${acc.data.length}`);
+            return acc.data;
+          };
+
+          const mkt = await get("ITEM 1: LIVE MARKET", process.env.MARKET!);
+          if (mkt) {
+            try {
+              console.log(JSON.stringify(lean.parseMarket(Buffer.from(mkt)), ser, 2));
+            } catch (e) {
+              console.log("parseMarket failed:", String(e));
+              console.log("RAW HEX:", Buffer.from(mkt).toString("hex"));
+            }
+          }
+
+          const lp = await get("ITEM 6A: LP PORTFOLIO", process.env.LP_PORTFOLIO!);
+          if (lp) {
+            const parsePortfolio = (lean as any).parsePortfolio;
+            if (typeof parsePortfolio === "function") {
+              try {
+                console.log(JSON.stringify(parsePortfolio(Buffer.from(lp)), ser, 2));
+              } catch (e) {
+                console.log("parsePortfolio failed:", String(e));
+                console.log("RAW HEX:", Buffer.from(lp).toString("hex"));
+              }
+            } else {
+              console.log("parsePortfolio not exported — RAW HEX:");
+              console.log(Buffer.from(lp).toString("hex"));
+            }
+          }
+
+          const ctx = await get("ITEM 6B: AMM CTX", process.env.AMM_CTX!);
+          if (ctx) {
+            const candidates = ["parsePropAmmCtx", "parseAmmCtx", "parsePropAmm", "parseMatcherCtx"];
+            const parserName = candidates.find((n) => typeof (lean as any)[n] === "function");
+            if (parserName) {
+              try {
+                console.log(`(using ${parserName})`);
+                console.log(JSON.stringify((lean as any)[parserName](Buffer.from(ctx)), ser, 2));
+              } catch (e) {
+                console.log(`${parserName} failed:`, String(e));
+                console.log("RAW HEX:", Buffer.from(ctx).toString("hex"));
+              }
+            } else {
+              console.log("No AMM ctx parser found — RAW HEX:");
+              console.log(Buffer.from(ctx).toString("hex"));
+            }
+          }
+          EOF
+
+      - name: Item 1 & 6 — dump live mainnet state
+        run: |
+          set -euo pipefail
+          cd percolator-cli
+          npx tsx fetch-bug4.ts 2>&1 | tee live-state.log
+
+      - name: Items 2-5 — dump all _lean-round5-*.ts scripts
+        run: |
+          set -euo pipefail
+          cd percolator-cli
           {
-            echo "=== liquidate_at_oracle_internal (full body) ==="
-            grep -n "fn liquidate_at_oracle_internal" -A 200 percolator/src/percolator.rs \
-              || grep -n "fn liquidate_at_oracle_internal" -A 200 percolator-prog/src/percolator.rs
+            echo "=== LIST OF ROUND-5 SCRIPTS ==="
+            ls -la scripts/_lean-round5* 2>/dev/null || echo "(no _lean-round5* files in scripts/)"
             echo
-            echo "=== finalize_touched_accounts_post_live ==="
-            grep -n "fn finalize_touched_accounts_post_live" -A 120 percolator/src/percolator.rs \
-              || grep -n "fn finalize_touched_accounts_post_live" -A 120 percolator-prog/src/percolator.rs
-            echo
-            echo "=== assert_public_postconditions ==="
-            grep -rn "assert_public_postconditions" -A 80 percolator/src percolator-prog/src --include='*.rs' || true
-          } > liquidation-atomicity.log
+            shopt -s nullglob
+            files=(scripts/_lean-round5*.ts)
+            if [ ${#files[@]} -eq 0 ]; then
+              echo "PATTERN MATCHED ZERO FILES"
+              echo "Available scripts:"
+              ls -la scripts/ || true
+            else
+              for f in "${files[@]}"; do
+                echo "=========================================="
+                echo "FILE: $f"
+                echo "=========================================="
+                cat "$f"
+                echo
+              done
+            fi
+          } 2>&1 | tee round5-scripts.log
 
-      - name: Dump CLI PropAMM and stale-mark close path
+      - name: Also dump any PropAMM / Matcher source in percolator-lean
         run: |
           set -euo pipefail
+          cd percolator-lean
           {
-            echo "=== ROUND5-REHEARSAL.md ==="
-            cat percolator-cli/ROUND5-REHEARSAL.md 2>/dev/null || echo "(missing)"
+            echo "=== Lean files mentioning PropAmm / PropAMM / Matcher ==="
+            grep -rln -E 'PropAmm|PropAMM|Matcher|matcher' --include='*.lean' . 2>/dev/null || true
             echo
-            echo "=== lean-attack.ts ==="
-            cat percolator-cli/scripts/lean-attack.ts 2>/dev/null || echo "(missing)"
-            echo
-            echo "=== _lean-builtin-funding.ts ==="
-            cat percolator-cli/scripts/_lean-builtin-funding.ts 2>/dev/null || echo "(missing)"
-            echo
-            echo "=== tradeWithMatcherFresh signature ==="
-            grep -rn "tradeWithMatcherFresh" -A 40 percolator-cli/src --include='*.ts' || true
-          } > propamm-attack-surface.log
+            for f in $(grep -rln -E 'PropAmm|PropAMM|Matcher|matcher' --include='*.lean' . 2>/dev/null); do
+              echo "=========================================="
+              echo "FILE: $f"
+              echo "=========================================="
+              cat "$f"
+              echo
+            done
+          } 2>&1 | tee ../propamm-lean-source.log
 
-      - name: Upload
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: percolator-bug4-r4
+          name: bug4-fetch-${{ github.run_id }}
           path: |
-            liquidation-atomicity.log
-            propamm-attack-surface.log
+            percolator-cli/live-state.log
+            percolator-cli/round5-scripts.log
+            propamm-lean-source.log
+          if-no-files-found: warn
+          retention-days: 30
