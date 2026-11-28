@@ -9,7 +9,7 @@ jobs:
     steps:
       - name: Clone percolator-lean (887ba02) & percolator-cli
         run: |
-          git clone https://github.com
+          git clone https://github.com/aeyakovenko/percolator-cli
           (cd percolator-lean && git checkout 887ba02)
           git clone --depth 1 https://github.com
 
