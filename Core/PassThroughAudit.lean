@@ -25,7 +25,7 @@ private partial def usesFVar (target : FVarId) : Expr → Bool
 private def checkUnusedPropBinders (cName : Name) : MetaM (Array Name) := do
   let env ← getEnv
   let some cinfo := env.find? cName | return #[]
-  let some val := cinfo.value? | return #[]
+  let some val := cinfo.value? (allowOpaque := true) | return #[]
   lambdaTelescope val fun xs body => do
     let mut unused : Array Name := #[]
     for x in xs do

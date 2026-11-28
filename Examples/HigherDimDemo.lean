@@ -39,4 +39,18 @@ theorem opaqueTagTheorem : 1 ≤ 2 := by
 #audit_fibers demoHeadlineTheorem
 #audit_inductives demoHeadlineTheorem
 
+/-- Uses a core lemma: no cone walk should enter the core library to reach `Nat.add_comm`. -/
+theorem demoUsesCoreLemma (a b : Nat) : a + b = b + a := Nat.add_comm a b
+
+#audit_theorem MetaCodex.Examples.demoUsesCoreLemma
+
+-- Fails the build if either cone walk (ConeAudit's or FieldProjection's) contains `Nat.add_comm`.
+open Lean in
+#eval show CoreM Unit from do
+  let env ← getEnv
+  if (MetaCodex.Core.collectOpaqueSafeCone env ``demoUsesCoreLemma).1.contains ``Nat.add_comm ||
+      (MetaCodex.Core.collectActiveCone env ``demoUsesCoreLemma).contains ``Nat.add_comm then
+    throwError "a cone walk entered the core library (Nat.add_comm)"
+  IO.println "ok: neither cone walk contains Nat.add_comm"
+
 end MetaCodex.Examples

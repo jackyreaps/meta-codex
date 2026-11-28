@@ -1,4 +1,5 @@
 import Lean
+import Core.ConeAudit
 
 /-!
 # FieldProjection: Structure Field Opening & Passive Transport Audit
@@ -13,7 +14,10 @@ namespace MetaCodex.Core
 
 open Lean Elab Command
 
-/-- Collect all non-stdlib transitive constants reachable from `root`. -/
+/-- Collect all non-library transitive constants reachable from `root`. Library constants are
+    skipped by the module they come from (`isExternalLibraryConst`, shared with `ConeAudit`), so
+    core lemmas outside the `Lean.*`/`Init.*` namespaces (e.g. `Nat.add_comm`, `Exists.intro`)
+    are not walked either. -/
 def collectActiveCone (env : Environment) (root : Name) : Array Name := Id.run do
   let mut visited : NameSet := {}
   let mut queue : List Name := [root]
@@ -23,13 +27,12 @@ def collectActiveCone (env : Environment) (root : Name) : Array Name := Id.run d
     queue := rest
     if visited.contains curr then continue
     visited := visited.insert curr
-    let s := curr.toString
-    if s.startsWith "Lean." || s.startsWith "Init." || s.startsWith "Std." || s.startsWith "Mathlib." then
+    if isExternalLibraryConst env curr then
       continue
     ordered := ordered.push curr
     if let some cinfo := env.find? curr then
       let deps := cinfo.type.getUsedConstants.toList ++
-        (match cinfo.value? with | some v => v.getUsedConstants.toList | none => [])
+        (match cinfo.value? (allowOpaque := true) with | some v => v.getUsedConstants.toList | none => [])
       queue := queue ++ deps.eraseDups
   return ordered
 
@@ -86,7 +89,7 @@ elab "#audit_fields " thmId:ident structId:ident : command => do
     if let some cinfo := env.find? c then
       let (_, st) := (do
         scanExprForStruct structName recNames projConstMap cinfo.type
-        if let some v := cinfo.value? then
+        if let some v := cinfo.value? (allowOpaque := true) then
           scanExprForStruct structName recNames projConstMap v).run exprState
       exprState := st
   let (_, openedIdx, usedRec) := exprState
